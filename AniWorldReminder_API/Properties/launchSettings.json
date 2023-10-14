@@ -38,8 +38,8 @@
     },
     "Docker": {
       "commandName": "Docker",
-      "launchBrowser": false,
-      //"launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
+      "launchBrowser": true,
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/swagger",
       "environmentVariables": {
         "DOTNET_RUNNING_IN_CONTAINER": "true"
       },
