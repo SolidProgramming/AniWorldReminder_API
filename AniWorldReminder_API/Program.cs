@@ -18,9 +18,14 @@ namespace AniWorldReminder_API
             // Add services to the container.
             builder.Services.AddAuthorization();
 
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+            AppSettingsModel? appSettings = SettingsHelper.ReadSettings<AppSettingsModel>();
+
+            if (appSettings is not null && appSettings.AddSwagger)
+            {
+                // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+                builder.Services.AddEndpointsApiExplorer();
+                builder.Services.AddSwaggerGen();
+            }
 
             builder.Services.AddSingleton<Interfaces.IHttpClientFactory, HttpClientFactory>();
 
@@ -64,12 +69,11 @@ namespace AniWorldReminder_API
             if (!await sTOService.Init(proxy))
                 return;
 
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
+            if (appSettings is not null && appSettings.AddSwagger)
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
-            }
+            }           
 
             app.UseHttpsRedirection();
             app.UseAuthorization();

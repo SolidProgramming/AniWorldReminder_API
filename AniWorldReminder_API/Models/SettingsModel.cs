@@ -9,5 +9,8 @@ namespace AniWorldReminder_API.Models
 
         [JsonPropertyName("Proxy")]
         public ProxyAccountModel ProxySettings { get; set; } = default!;
+        [JsonPropertyName(name: "AppSettings")]
+        public AppSettingsModel AppSettings { get; set; } = default!;
+
     }
 }
