@@ -4,6 +4,7 @@ global using AniWorldReminder_API.Interfaces;
 global using AniWorldReminder_API.Enums;
 global using AniWorldReminder_API.Misc;
 global using AniWorldReminder_API.Factories;
+global using AniWorldReminder_API.Services;
 using Newtonsoft.Json;
 using System.Net;
 
@@ -13,7 +14,7 @@ namespace AniWorldReminder_API
     {
         public static async Task Main(string[] args)
         {
-            var builder = WebApplication.CreateBuilder(args);
+            WebApplicationBuilder? builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
             builder.Services.AddAuthorization();
@@ -27,6 +28,8 @@ namespace AniWorldReminder_API
                 builder.Services.AddSwaggerGen();
             }
 
+            builder.Services.AddSingleton<IDBService, DBService>();
+
             builder.Services.AddSingleton<Interfaces.IHttpClientFactory, HttpClientFactory>();
 
             builder.Services.AddSingleton<IStreamingPortalServiceFactory>(_ =>
@@ -38,7 +41,11 @@ namespace AniWorldReminder_API
                 return streamingPortalServiceFactory;
             });
 
-            var app = builder.Build();
+            WebApplication? app = builder.Build();
+
+            IDBService DBService = app.Services.GetRequiredService<IDBService>();
+            if (!await DBService.Init())
+                return;
 
             Interfaces.IHttpClientFactory? httpClientFactory = app.Services.GetRequiredService<Interfaces.IHttpClientFactory>();
             HttpClient? noProxyClient = httpClientFactory.CreateHttpClient<Program>();
@@ -82,6 +89,11 @@ namespace AniWorldReminder_API
             {
                 (bool success, List<SearchResultModel>? searchResults) = await aniWordService.GetSeriesAsync(seriesName);
                 return JsonConvert.SerializeObject(searchResults);
+            }).WithOpenApi();
+
+            app.MapPost("verify", async (string telegramChatid, string username, string password) =>
+            {
+
             }).WithOpenApi();
 
             app.Run();
