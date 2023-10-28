@@ -7,6 +7,7 @@ global using AniWorldReminder_API.Factories;
 global using AniWorldReminder_API.Services;
 using Newtonsoft.Json;
 using System.Net;
+using System.Text;
 
 namespace AniWorldReminder_API
 {
@@ -29,8 +30,8 @@ namespace AniWorldReminder_API
             }
 
             builder.Services.AddSingleton<IDBService, DBService>();
-
             builder.Services.AddSingleton<Interfaces.IHttpClientFactory, HttpClientFactory>();
+            builder.Services.AddSingleton<ITelegramBotService, TelegramBotService>();
 
             builder.Services.AddSingleton<IStreamingPortalServiceFactory>(_ =>
             {
@@ -44,7 +45,11 @@ namespace AniWorldReminder_API
             WebApplication? app = builder.Build();
 
             IDBService DBService = app.Services.GetRequiredService<IDBService>();
-            if (!await DBService.Init())
+            if (!await DBService.InitAsync())
+                return;
+
+            ITelegramBotService? telegramBotService = app.Services.GetRequiredService<ITelegramBotService>();
+            if (!await telegramBotService.Init())
                 return;
 
             Interfaces.IHttpClientFactory? httpClientFactory = app.Services.GetRequiredService<Interfaces.IHttpClientFactory>();
@@ -70,17 +75,17 @@ namespace AniWorldReminder_API
             IStreamingPortalService aniWordService = streamingPortalServiceFactory.GetService(StreamingPortal.AniWorld);
             IStreamingPortalService sTOService = streamingPortalServiceFactory.GetService(StreamingPortal.STO);
 
-            if (!await aniWordService.Init(proxy))
+            if (!await aniWordService.InitAsync(proxy))
                 return;
 
-            if (!await sTOService.Init(proxy))
+            if (!await sTOService.InitAsync(proxy))
                 return;
 
             if (appSettings is not null && appSettings.AddSwagger)
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
-            }           
+            }
 
             app.UseHttpsRedirection();
             app.UseAuthorization();
@@ -91,8 +96,49 @@ namespace AniWorldReminder_API
                 return JsonConvert.SerializeObject(searchResults);
             }).WithOpenApi();
 
-            app.MapPost("verify", async (string telegramChatid, string username, string password) =>
+            app.MapGet("verify", async (string telegramChatid, string verifyToken) =>
             {
+                UserModel? user = await DBService.GetUserAsync(telegramChatid);
+
+                if (user is null)
+                    return Results.NotFound("User not found!");
+
+                if (user.Verified == VerificationStatus.Verified  && string.IsNullOrEmpty(user.VerifyToken))
+                    return Results.BadRequest("You are already verified!");
+
+                user.VerifyToken = verifyToken;
+                TokenValidationModel token = Helper.ValidateToken(user);
+
+                if (!token.Validated)
+                {
+                    List<string> problems = new();
+
+                    foreach (TokenValidationStatus tokenStatus in token.Errors)
+                    {
+                        problems.Add(tokenStatus.ToString());
+                    }
+
+                    Dictionary<string, string[]> problemsList = new()
+                    {
+                        { "Validation", problems.ToArray() }
+                    };
+
+                    await DBService.UpdateVerificationStatusAsync(telegramChatid, VerificationStatus.NotVerified);
+
+                    return Results.ValidationProblem(problemsList);
+                }
+
+                await DBService.DeleteVerifyTokenAsync(telegramChatid);
+                await DBService.UpdateVerificationStatusAsync(telegramChatid, VerificationStatus.Verified);
+
+                StringBuilder sb = new();
+
+                sb.AppendLine($"{Emoji.Confetti} <b>Dein Account wurde erfolgreich verifiziert.</b> {Emoji.Confetti}\n");
+                sb.AppendLine($"{Emoji.Checkmark} Du kannst dich ab jetzt auf der Webseite einloggen und deine Reminder verwalten");
+
+                await telegramBotService.SendMessageAsync(long.Parse(telegramChatid), sb.ToString());
+
+                return Results.Ok("Your Account is now verified.");
 
             }).WithOpenApi();
 

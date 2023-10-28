@@ -25,7 +25,7 @@ namespace AniWorldReminder_API.Services
             Logger = logger;
         }
 
-        public async Task<bool> Init(WebProxy? proxy = null)
+        public async Task<bool> InitAsync(WebProxy? proxy = null)
         {
             if (proxy is null)
             {
