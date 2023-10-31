@@ -85,16 +85,26 @@ namespace AniWorldReminder_API
             if (appSettings is not null && appSettings.AddSwagger)
             {
                 app.UseSwagger();
-                app.UseSwaggerUI();
+                app.UseSwaggerUI(_ => _.EnableTryItOutByDefault());
             }
 
             app.UseHttpsRedirection();
             app.UseAuthorization();
 
-            app.MapGet("getSeriesInfo", async (string seriesName) =>
+            app.MapGet("getSeries", async (string seriesName) =>
             {
                 (bool success, List<SearchResultModel>? searchResults) = await aniWordService.GetSeriesAsync(seriesName);
                 return JsonConvert.SerializeObject(searchResults);
+            }).WithOpenApi();
+
+            app.MapGet("getSeriesInfo", async (string seriesName) =>
+            {
+                SeriesInfoModel? seriesInfo = await aniWordService.GetSeriesInfoAsync(seriesName, StreamingPortal.AniWorld);
+
+                if (seriesInfo is null)
+                    return Results.BadRequest($"Keine Daten zu {seriesName} gefunden");
+
+                return Results.Ok(JsonConvert.SerializeObject(seriesInfo));
             }).WithOpenApi();
 
             app.MapPost("verify", async ([FromBody] VerifyRequestModel verifyRequest) =>
