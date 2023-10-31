@@ -8,6 +8,7 @@ global using AniWorldReminder_API.Services;
 using Newtonsoft.Json;
 using System.Net;
 using System.Text;
+using Microsoft.AspNetCore.Mvc;
 
 namespace AniWorldReminder_API
 {
@@ -96,17 +97,20 @@ namespace AniWorldReminder_API
                 return JsonConvert.SerializeObject(searchResults);
             }).WithOpenApi();
 
-            app.MapGet("verify", async (string telegramChatid, string verifyToken) =>
+            app.MapPost("verify", async ([FromBody] VerifyRequestModel verifyRequest) =>
             {
-                UserModel? user = await DBService.GetUserAsync(telegramChatid);
+                if(verifyRequest is null)
+                    return Results.BadRequest();
+
+                UserModel? user = await DBService.GetUserAsync(verifyRequest.TelegramChatId!);
 
                 if (user is null)
                     return Results.NotFound("User not found!");
 
-                if (user.Verified == VerificationStatus.Verified  && string.IsNullOrEmpty(user.VerifyToken))
+                if (user.Verified == VerificationStatus.Verified && string.IsNullOrEmpty(user.VerifyToken))
                     return Results.BadRequest("You are already verified!");
 
-                user.VerifyToken = verifyToken;
+                user.VerifyToken = verifyRequest.VerifyToken;
                 TokenValidationModel token = Helper.ValidateToken(user);
 
                 if (!token.Validated)
@@ -123,20 +127,20 @@ namespace AniWorldReminder_API
                         { "Validation", problems.ToArray() }
                     };
 
-                    await DBService.UpdateVerificationStatusAsync(telegramChatid, VerificationStatus.NotVerified);
+                    await DBService.UpdateVerificationStatusAsync(verifyRequest.TelegramChatId!, VerificationStatus.NotVerified);
 
                     return Results.ValidationProblem(problemsList);
                 }
 
-                await DBService.DeleteVerifyTokenAsync(telegramChatid);
-                await DBService.UpdateVerificationStatusAsync(telegramChatid, VerificationStatus.Verified);
+                await DBService.DeleteVerifyTokenAsync(verifyRequest.TelegramChatId!);
+                await DBService.UpdateVerificationStatusAsync(verifyRequest.TelegramChatId!, VerificationStatus.Verified);
 
                 StringBuilder sb = new();
 
                 sb.AppendLine($"{Emoji.Confetti} <b>Dein Account wurde erfolgreich verifiziert.</b> {Emoji.Confetti}\n");
                 sb.AppendLine($"{Emoji.Checkmark} Du kannst dich ab jetzt auf der Webseite einloggen und deine Reminder verwalten");
 
-                await telegramBotService.SendMessageAsync(long.Parse(telegramChatid), sb.ToString());
+                await telegramBotService.SendMessageAsync(long.Parse(verifyRequest.TelegramChatId!), sb.ToString());
 
                 return Results.Ok("Your Account is now verified.");
 
