@@ -35,7 +35,7 @@ namespace AniWorldReminder_API.Misc
             byte[] _Id = data.Skip(17).ToArray();
 
             DateTime when = DateTime.FromBinary(BitConverter.ToInt64(_time, 0));
-            if (when < DateTime.UtcNow.AddHours(-24))
+            if (when < DateTime.Now)
             {
                 result.Errors.Add(TokenValidationStatus.TokenExpired);
             }
@@ -46,19 +46,6 @@ namespace AniWorldReminder_API.Misc
             }
 
             return result;
-        }
-        public static string GenerateToken(UserModel user)
-        {
-            byte[] _time = BitConverter.GetBytes(DateTime.UtcNow.ToBinary());
-            byte[] _key = GetBytes(user.TelegramChatId);
-            byte[] _Id = GetBytes(user.Id.ToString());
-            byte[] data = new byte[_time.Length + _key.Length + _Id.Length];
-
-            Buffer.BlockCopy(_time, 0, data, 0, _time.Length);
-            Buffer.BlockCopy(_key, 0, data, _time.Length, _key.Length);
-            Buffer.BlockCopy(_Id, 0, data, _time.Length + _key.Length, _Id.Length);
-
-            return Convert.ToBase64String(data.ToArray());
         }
 
         public static bool IsBase64String(string base64)
