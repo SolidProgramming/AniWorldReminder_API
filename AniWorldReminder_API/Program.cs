@@ -9,6 +9,13 @@ using Newtonsoft.Json;
 using System.Net;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Configuration;
+using System;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 namespace AniWorldReminder_API
 {
@@ -18,7 +25,20 @@ namespace AniWorldReminder_API
         {
             WebApplicationBuilder? builder = WebApplication.CreateBuilder(args);
 
-            // Add services to the container.
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
+                {
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidateAudience = true,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        ValidIssuer = builder.Configuration["Jwt:Issuer"],
+                        ValidAudience = builder.Configuration["Jwt:Issuer"],
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+                    };
+                });
             builder.Services.AddAuthorization();
 
             AppSettingsModel? appSettings = SettingsHelper.ReadSettings<AppSettingsModel>();
@@ -30,6 +50,7 @@ namespace AniWorldReminder_API
                 builder.Services.AddSwaggerGen();
             }
 
+            builder.Services.AddSingleton<IAuthService, AuthService>();
             builder.Services.AddSingleton<IDBService, DBService>();
             builder.Services.AddSingleton<Interfaces.IHttpClientFactory, HttpClientFactory>();
             builder.Services.AddSingleton<ITelegramBotService, TelegramBotService>();
@@ -44,6 +65,8 @@ namespace AniWorldReminder_API
             });
 
             WebApplication? app = builder.Build();
+
+            IAuthService authService = app.Services.GetRequiredService<IAuthService>();
 
             IDBService DBService = app.Services.GetRequiredService<IDBService>();
             if (!await DBService.InitAsync())
@@ -89,6 +112,7 @@ namespace AniWorldReminder_API
             }
 
             app.UseHttpsRedirection();
+            app.UseAuthentication();
             app.UseAuthorization();
 
             app.MapGet("getSeries", async (string seriesName) =>
@@ -157,6 +181,37 @@ namespace AniWorldReminder_API
                 return Results.Ok("Your Account is now verified.");
 
             }).WithOpenApi();
+
+            app.MapGet("/restricted", [Authorize] () =>
+            {
+                return Results.Ok("hallo");
+            });
+
+            app.MapPost("/login", [AllowAnonymous] async ([FromBody] UserModel login) =>
+            {
+                UserModel? user = await authService.Connect(login);
+
+                if (user == null)
+                    return Results.BadRequest();
+
+                var tokenString = GenerateJSONWebToken(user);
+
+                return Results.Ok(new { token = tokenString });
+
+                string GenerateJSONWebToken(UserModel? userInfo)
+                {
+                    SymmetricSecurityKey? securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]));
+                    SigningCredentials? credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+                    JwtSecurityToken? token = new(builder.Configuration["Jwt:Issuer"],
+                      builder.Configuration["Jwt:Issuer"],
+                      null,
+                      expires: DateTime.Now.AddMinutes(120),
+                      signingCredentials: credentials);
+
+                    return new JwtSecurityTokenHandler().WriteToken(token);
+                }
+            });
 
             app.Run();
         }
