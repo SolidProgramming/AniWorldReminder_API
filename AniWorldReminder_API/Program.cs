@@ -182,26 +182,21 @@ namespace AniWorldReminder_API
 
             }).WithOpenApi();
 
-            app.MapGet("/restricted", [Authorize] () =>
+            app.MapPost("/login", [AllowAnonymous] async ([FromHeader] string username, [FromHeader] string password) =>
             {
-                return Results.Ok("hallo");
-            });
-
-            app.MapPost("/login", [AllowAnonymous] async ([FromBody] UserModel login) =>
-            {
-                UserModel? user = await authService.Connect(login);
+                UserModel? user = await authService.Authenticate(username, password);
 
                 if (user == null)
-                    return Results.BadRequest();
+                    return Results.Unauthorized();
 
-                var tokenString = GenerateJSONWebToken(user);
+                string? tokenString = GenerateJSONWebToken(user);
 
                 return Results.Ok(new { token = tokenString });
 
                 string GenerateJSONWebToken(UserModel? userInfo)
                 {
-                    SymmetricSecurityKey? securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]));
-                    SigningCredentials? credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+                    SymmetricSecurityKey? securityKey = new(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]));
+                    SigningCredentials? credentials = new(securityKey, SecurityAlgorithms.HmacSha256);
 
                     JwtSecurityToken? token = new(builder.Configuration["Jwt:Issuer"],
                       builder.Configuration["Jwt:Issuer"],

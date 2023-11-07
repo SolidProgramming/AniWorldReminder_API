@@ -127,5 +127,21 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
+
+        public async Task<UserModel?> GetAuthUserAsync(string username)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@Username", username },
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            string query = "SELECT * FROM users WHERE Username = @Username";
+
+            return await connection.QuerySingleOrDefaultAsync<UserModel>(query, parameters);
+        }
     }
 }

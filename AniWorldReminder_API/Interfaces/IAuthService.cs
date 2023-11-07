@@ -2,6 +2,6 @@
 {
     public interface IAuthService
     {
-        Task<UserModel?> Connect(UserModel login);
+        Task<UserModel?> Authenticate(string username, string password);
     }
 }

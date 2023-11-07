@@ -7,10 +7,30 @@ namespace AniWorldReminder_API.Services
 {
     public class AuthService : IAuthService
     {
-        public async Task<UserModel?> Connect(UserModel login)
+        private readonly IDBService DBService;
+        private readonly ILogger<AuthService> Logger;
+
+        public AuthService(ILogger<AuthService> logger, IDBService dbService)
         {
-            UserModel? user = null;
-            return await Task.FromResult(user);
+            Logger = logger;
+            DBService = dbService;
+
+            Logger.LogInformation($"{DateTime.Now} Auth Service initialized");
+        }
+
+        public async Task<UserModel?> Authenticate(string username, string password)
+        {
+            UserModel? user = await DBService.GetAuthUserAsync(username);
+
+            if (user is null || string.IsNullOrEmpty(user.Password))
+                return null;
+
+            bool verify = SecretHasher.Verify(password, user.Password);
+
+            if(!verify)
+                return null;
+
+            return user;
         }
     }
 }
