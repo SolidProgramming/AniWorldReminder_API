@@ -2,7 +2,8 @@
 {
     public class VerifyRequestModel
     {
-        public string? TelegramChatId { get; set; }
+        public string? Password { get; set; }
+        public string? Username { get; set; }
         public string? VerifyToken { get; set; }
     }
 }

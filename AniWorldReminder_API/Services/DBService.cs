@@ -104,5 +104,28 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
+
+        public async Task SetVerifyStatusAsync(UserModel user)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "UPDATE users " +
+                           "SET users.Verified = @Verified " +
+                           ", users.Username = @Username " +
+                           ", users.Password = @Password " +
+                           "WHERE users.TelegramChatId = @TelegramChatId";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@Verified", (int)VerificationStatus.Verified },
+                { "@TelegramChatId", user.TelegramChatId! },
+                { "@Username", user.Username! },
+                { "@Password", user.Password! }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            await connection.ExecuteAsync(query, parameters);
+        }
     }
 }

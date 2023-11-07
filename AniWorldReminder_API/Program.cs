@@ -109,19 +109,10 @@ namespace AniWorldReminder_API
 
             app.MapPost("verify", async ([FromBody] VerifyRequestModel verifyRequest) =>
             {
-                if(verifyRequest is null)
+                if (verifyRequest is null || string.IsNullOrEmpty(verifyRequest.VerifyToken) || string.IsNullOrEmpty(verifyRequest.Username) || string.IsNullOrEmpty(verifyRequest.Password))
                     return Results.BadRequest();
 
-                UserModel? user = await DBService.GetUserAsync(verifyRequest.TelegramChatId!);
-
-                if (user is null)
-                    return Results.NotFound("User not found!");
-
-                if (user.Verified == VerificationStatus.Verified && string.IsNullOrEmpty(user.VerifyToken))
-                    return Results.BadRequest("You are already verified!");
-
-                user.VerifyToken = verifyRequest.VerifyToken;
-                TokenValidationModel token = Helper.ValidateToken(user);
+                TokenValidationModel token = Helper.ValidateToken(verifyRequest.VerifyToken);
 
                 if (!token.Validated)
                 {
@@ -137,20 +128,31 @@ namespace AniWorldReminder_API
                         { "Validation", problems.ToArray() }
                     };
 
-                    await DBService.UpdateVerificationStatusAsync(verifyRequest.TelegramChatId!, VerificationStatus.NotVerified);
+                    await DBService.UpdateVerificationStatusAsync(token.TelegramChatId, VerificationStatus.NotVerified);
 
                     return Results.ValidationProblem(problemsList);
                 }
 
-                await DBService.DeleteVerifyTokenAsync(verifyRequest.TelegramChatId!);
-                await DBService.UpdateVerificationStatusAsync(verifyRequest.TelegramChatId!, VerificationStatus.Verified);
+                UserModel? user = await DBService.GetUserAsync(token.TelegramChatId!);
+
+                if (user is null || string.IsNullOrEmpty(user.TelegramChatId))
+                    return Results.NotFound("User not found!");
+
+                if (user.Verified == VerificationStatus.Verified)
+                    return Results.BadRequest("You are already verified!");
+
+                user.Username = verifyRequest.Username;
+                user.Password = SecretHasher.Hash(verifyRequest.Password);
+
+                await DBService.DeleteVerifyTokenAsync(user.TelegramChatId);
+                await DBService.SetVerifyStatusAsync(user);
 
                 StringBuilder sb = new();
 
-                sb.AppendLine($"{Emoji.Confetti} <b>Dein Account wurde erfolgreich verifiziert.</b> {Emoji.Confetti}\n");
-                sb.AppendLine($"{Emoji.Checkmark} Du kannst dich ab jetzt auf der Webseite einloggen und deine Reminder verwalten");
+                sb.AppendLine($"{Emoji.Confetti} <b>Dein Account({verifyRequest.Username}) wurde erfolgreich verifiziert.</b> {Emoji.Confetti}\n");
+                sb.AppendLine($"{Emoji.Checkmark} Du kannst dich ab jetzt auf der Webseite einloggen und deine Reminder verwalten.");
 
-                await telegramBotService.SendMessageAsync(long.Parse(verifyRequest.TelegramChatId!), sb.ToString());
+                await telegramBotService.SendMessageAsync(long.Parse(user.TelegramChatId), sb.ToString());
 
                 return Results.Ok("Your Account is now verified.");
 
