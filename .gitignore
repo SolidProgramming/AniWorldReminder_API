@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /AniWorldReminder_API/settings.json
 /AniWorldReminder_API/appdata/settings.json
+/AniWorldReminder_API/appsettings.json
