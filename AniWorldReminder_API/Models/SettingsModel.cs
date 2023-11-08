@@ -16,5 +16,7 @@ namespace AniWorldReminder_API.Models
         [JsonPropertyName(name: "AppSettings")]
         public AppSettingsModel AppSettings { get; set; } = default!;
 
+        [JsonPropertyName(name: "Jwt")]
+        public JwtSettingsModel JwtSettings { get; set; } = default!;
     }
 }

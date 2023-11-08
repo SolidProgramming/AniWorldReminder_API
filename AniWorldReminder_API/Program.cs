@@ -25,6 +25,11 @@ namespace AniWorldReminder_API
         {
             WebApplicationBuilder? builder = WebApplication.CreateBuilder(args);
 
+            JwtSettingsModel? jwtSettings = SettingsHelper.ReadSettings<JwtSettingsModel>();
+
+            if (jwtSettings is null || string.IsNullOrEmpty(jwtSettings.Key) || string.IsNullOrEmpty(jwtSettings.Issuer))
+                return;
+
             builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
                 {
@@ -34,11 +39,12 @@ namespace AniWorldReminder_API
                         ValidateAudience = true,
                         ValidateLifetime = true,
                         ValidateIssuerSigningKey = true,
-                        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-                        ValidAudience = builder.Configuration["Jwt:Issuer"],
-                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+                        ValidIssuer = jwtSettings.Issuer,
+                        ValidAudience = jwtSettings.Issuer,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key))
                     };
                 });
+
             builder.Services.AddAuthorization();
 
             AppSettingsModel? appSettings = SettingsHelper.ReadSettings<AppSettingsModel>();
@@ -189,24 +195,12 @@ namespace AniWorldReminder_API
                 if (user == null)
                     return Results.Unauthorized();
 
-                string? tokenString = GenerateJSONWebToken(user);
+                string? tokenString = authService.GenerateJSONWebToken();
 
                 return Results.Ok(new { token = tokenString });
-
-                string GenerateJSONWebToken(UserModel? userInfo)
-                {
-                    SymmetricSecurityKey? securityKey = new(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]));
-                    SigningCredentials? credentials = new(securityKey, SecurityAlgorithms.HmacSha256);
-
-                    JwtSecurityToken? token = new(builder.Configuration["Jwt:Issuer"],
-                      builder.Configuration["Jwt:Issuer"],
-                      null,
-                      expires: DateTime.Now.AddMinutes(120),
-                      signingCredentials: credentials);
-
-                    return new JwtSecurityTokenHandler().WriteToken(token);
-                }
             });
+
+            app.MapGet("/restricted", [Authorize] () => { });
 
             app.Run();
         }

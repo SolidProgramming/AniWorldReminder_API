@@ -27,10 +27,25 @@ namespace AniWorldReminder_API.Services
 
             bool verify = SecretHasher.Verify(password, user.Password);
 
-            if(!verify)
+            if (!verify)
                 return null;
 
             return user;
+        }
+
+        public string? GenerateJSONWebToken()
+        {
+            JwtSettingsModel? jwtSettings = SettingsHelper.ReadSettings<JwtSettingsModel>();
+
+            if (jwtSettings is null || string.IsNullOrEmpty(jwtSettings.Key) || string.IsNullOrEmpty(jwtSettings.Issuer))
+                return null;
+
+            SymmetricSecurityKey? securityKey = new(Encoding.UTF8.GetBytes(jwtSettings.Key));
+            SigningCredentials? credentials = new(securityKey, SecurityAlgorithms.HmacSha256);
+
+            JwtSecurityToken? token = new(jwtSettings.Issuer, jwtSettings.Issuer, null, expires: DateTime.Now.AddMinutes(120), signingCredentials: credentials);
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }
 }
