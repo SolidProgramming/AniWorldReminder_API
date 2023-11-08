@@ -188,16 +188,26 @@ namespace AniWorldReminder_API
 
             }).WithOpenApi();
 
-            app.MapPost("/login", [AllowAnonymous] async ([FromHeader] string username, [FromHeader] string password) =>
-            {
-                UserModel? user = await authService.Authenticate(username, password);
+            app.MapPost("/login", [AllowAnonymous] async (AuthUserModel authUser2) =>
+            {   
+                if (authUser2 is null || string.IsNullOrEmpty(authUser2.Username) || string.IsNullOrEmpty(authUser2.Password))
+                    return Results.BadRequest();
+
+                UserModel? user = await authService.Authenticate(authUser2.Username, authUser2.Password);
 
                 if (user == null)
                     return Results.Unauthorized();
 
                 string? tokenString = authService.GenerateJSONWebToken();
 
-                return Results.Ok(new { token = tokenString });
+                AuthUserModel authUser = new()
+                {
+                    Username = user.Username,
+                    Password = user.Password,
+                    Token = tokenString
+                };
+
+                return Results.Ok(authUser);
             });
 
             app.MapGet("/restricted", [Authorize] () => { });
