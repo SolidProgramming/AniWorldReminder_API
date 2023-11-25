@@ -198,16 +198,11 @@ namespace AniWorldReminder_API
                 if (user == null)
                     return Results.Unauthorized();
 
-                string? tokenString = authService.GenerateJSONWebToken();
+                string? jwt = authService.GenerateJSONWebToken();
 
-                AuthUserModel authUser = new()
-                {
-                    Username = user.Username,
-                    Password = user.Password,
-                    Token = tokenString
-                };
+                JwtResponseModel response = new(jwt!);
 
-                return Results.Ok(authUser);
+                return Results.Ok(response);
             });
 
             app.MapGet("/restricted", [Authorize] () => { });
