@@ -204,10 +204,7 @@ namespace AniWorldReminder_API
 
                 return Results.Ok(response);
             });
-
-            app.MapGet("/restricted", [Authorize] () => { });
-
-            app.Run();
+                        app.Run();
         }
     }
 }
