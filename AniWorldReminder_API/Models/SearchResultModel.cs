@@ -12,5 +12,7 @@ namespace AniWorldReminder_API.Models
 
         [JsonPropertyName("link")]
         public string Link { get; set; }
+
+        public string CoverArtUrl { get; set; }
     }
 }

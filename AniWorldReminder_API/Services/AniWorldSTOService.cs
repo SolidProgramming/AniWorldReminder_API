@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using System.Text;
 using System.Xml;
 using HtmlAgilityPack;
+using System.Web;
 
 namespace AniWorldReminder_API.Services
 {
@@ -69,7 +70,7 @@ namespace AniWorldReminder_API.Services
             if (!resp.IsSuccessStatusCode)
                 return (false, null);
 
-            string content = await resp.Content.ReadAsStringAsync();
+            string content = HttpUtility.HtmlDecode(await resp.Content.ReadAsStringAsync());
 
             try
             {
@@ -95,6 +96,19 @@ namespace AniWorldReminder_API.Services
 
                 if (filteredSearchResults.Count == 0)
                     return (false, null);
+
+                HtmlDocument doc = new();               
+
+                foreach (SearchResultModel result in filteredSearchResults)
+                {
+                    if (string.IsNullOrEmpty(result.Link))
+                        continue;
+
+                    html = await HttpClient.GetStringAsync($"{BaseUrl}{result.Link}");
+                    doc.LoadHtml(html);
+
+                    result.CoverArtUrl = GetCoverArtUrl(doc)!;
+                }
 
                 return (true, filteredSearchResults);
             }

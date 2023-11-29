@@ -121,23 +121,23 @@ namespace AniWorldReminder_API
             app.UseAuthentication();
             app.UseAuthorization();
 
-            app.MapGet("getSeries", async (string seriesName) =>
+            app.MapGet("/getSeries", [Authorize] async (string seriesName) =>
             {
                 (bool success, List<SearchResultModel>? searchResults) = await aniWordService.GetSeriesAsync(seriesName);
                 return JsonConvert.SerializeObject(searchResults);
             }).WithOpenApi();
 
-            app.MapGet("getSeriesInfo", async (string seriesName) =>
+            app.MapGet("/getSeriesInfo", [Authorize] async (string seriesName) =>
             {
                 SeriesInfoModel? seriesInfo = await aniWordService.GetSeriesInfoAsync(seriesName, StreamingPortal.AniWorld);
 
-                if (seriesInfo is null)
-                    return Results.BadRequest($"Keine Daten zu {seriesName} gefunden");
+                //if (seriesInfo is null)
+                //    return Results.BadRequest($"Keine Daten zu {seriesName} gefunden");
 
-                return Results.Ok(JsonConvert.SerializeObject(seriesInfo));
+                return JsonConvert.SerializeObject(seriesInfo);
             }).WithOpenApi();
 
-            app.MapPost("verify", async ([FromBody] VerifyRequestModel verifyRequest) =>
+            app.MapPost("/verify", async ([FromBody] VerifyRequestModel verifyRequest) =>
             {
                 if (verifyRequest is null || string.IsNullOrEmpty(verifyRequest.VerifyToken) || string.IsNullOrEmpty(verifyRequest.Username) || string.IsNullOrEmpty(verifyRequest.Password))
                     return Results.BadRequest();
@@ -204,7 +204,8 @@ namespace AniWorldReminder_API
 
                 return Results.Ok(response);
             });
-                        app.Run();
+            
+            app.Run();
         }
     }
 }

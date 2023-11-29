@@ -34,7 +34,6 @@
         {
             return html.Contains("Browser Check");
         }
-
         public static StreamingPortal GetStreamingPortalByName(string streamingPortalName)
         {
             if (StreamingPortals.Any(_ => _.Key == streamingPortalName))
