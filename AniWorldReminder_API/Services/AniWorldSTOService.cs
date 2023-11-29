@@ -15,8 +15,9 @@ namespace AniWorldReminder_API.Services
 
         public string BaseUrl { get; init; }
         public string Name { get; init; }
+        public StreamingPortal StreamingPortal { get; init; }
 
-        public AniWorldSTOService(ILogger<AniWorldSTOService> logger, Interfaces.IHttpClientFactory httpClientFactory, string baseUrl, string name)
+        public AniWorldSTOService(ILogger<AniWorldSTOService> logger, Interfaces.IHttpClientFactory httpClientFactory, string baseUrl, string name, StreamingPortal streamingPortal)
         {
             BaseUrl = baseUrl;
             Name = name;
@@ -24,6 +25,7 @@ namespace AniWorldReminder_API.Services
             HttpClientFactory = httpClientFactory;
 
             Logger = logger;
+            StreamingPortal = streamingPortal;
         }
 
         public async Task<bool> InitAsync(WebProxy? proxy = null)
@@ -118,13 +120,13 @@ namespace AniWorldReminder_API.Services
             }
         }
 
-        public async Task<SeriesInfoModel?> GetSeriesInfoAsync(string seriesName, StreamingPortal streamingPortal)
+        public async Task<SeriesInfoModel?> GetSeriesInfoAsync(string seriesName)
         {
             string searchSeriesName = seriesName.UrlSanitize();
 
             string seriesUrl;
 
-            switch (streamingPortal)
+            switch (StreamingPortal)
             {
                 case StreamingPortal.STO:
                     seriesUrl = $"{BaseUrl}/serie/stream/{searchSeriesName}";
@@ -162,12 +164,12 @@ namespace AniWorldReminder_API.Services
                 Name = seriesName,
                 SeasonCount = seasonCount,
                 CoverArtUrl = GetCoverArtUrl(doc),
-                Seasons = await GetSeasonsAsync(searchSeriesName, seasonCount, streamingPortal)
+                Seasons = await GetSeasonsAsync(searchSeriesName, seasonCount)
             };
 
             foreach (SeasonModel season in seriesInfo.Seasons)
             {
-                List<EpisodeModel>? episodes = await GetSeasonEpisodesAsync(searchSeriesName, season.Id, streamingPortal);
+                List<EpisodeModel>? episodes = await GetSeasonEpisodesAsync(searchSeriesName, season.Id);
 
                 if (episodes is null || episodes.Count == 0)
                     continue;
@@ -178,7 +180,7 @@ namespace AniWorldReminder_API.Services
             return seriesInfo;
         }
 
-        private async Task<List<SeasonModel>> GetSeasonsAsync(string searchSeriesName, int seasonCount, StreamingPortal streamingPortal)
+        private async Task<List<SeasonModel>> GetSeasonsAsync(string searchSeriesName, int seasonCount)
         {
             List<SeasonModel> seasons = new();
 
@@ -186,7 +188,7 @@ namespace AniWorldReminder_API.Services
             {
                 string seasonUrl;
 
-                switch (streamingPortal)
+                switch (StreamingPortal)
                 {
                     case StreamingPortal.STO:
                         seasonUrl = $"{BaseUrl}/serie/stream/{searchSeriesName}/staffel-{i + 1}";
@@ -233,11 +235,11 @@ namespace AniWorldReminder_API.Services
             return seasons;
         }
 
-        private async Task<List<EpisodeModel>?> GetSeasonEpisodesAsync(string seriesName, int season, StreamingPortal streamingPortal)
+        private async Task<List<EpisodeModel>?> GetSeasonEpisodesAsync(string seriesName, int season)
         {
             string seasonUrl;
 
-            switch (streamingPortal)
+            switch (StreamingPortal)
             {
                 case StreamingPortal.STO:
                     seasonUrl = $"{BaseUrl}/serie/stream/{seriesName}/staffel-{season}";

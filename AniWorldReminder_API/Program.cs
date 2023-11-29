@@ -16,6 +16,7 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Telegram.Bot.Types;
 
 namespace AniWorldReminder_API
 {
@@ -129,10 +130,7 @@ namespace AniWorldReminder_API
 
             app.MapGet("/getSeriesInfo", [Authorize] async (string seriesName) =>
             {
-                SeriesInfoModel? seriesInfo = await aniWordService.GetSeriesInfoAsync(seriesName, StreamingPortal.AniWorld);
-
-                //if (seriesInfo is null)
-                //    return Results.BadRequest($"Keine Daten zu {seriesName} gefunden");
+                SeriesInfoModel? seriesInfo = await aniWordService.GetSeriesInfoAsync(seriesName);
 
                 return JsonConvert.SerializeObject(seriesInfo);
             }).WithOpenApi();
@@ -163,7 +161,7 @@ namespace AniWorldReminder_API
                     return Results.ValidationProblem(problemsList);
                 }
 
-                UserModel? user = await DBService.GetUserAsync(token.TelegramChatId!);
+                UserModel? user = await DBService.GetUserByTelegramIdAsync(token.TelegramChatId!);
 
                 if (user is null || string.IsNullOrEmpty(user.TelegramChatId))
                     return Results.NotFound("User not found!");
@@ -204,7 +202,42 @@ namespace AniWorldReminder_API
 
                 return Results.Ok(response);
             });
-            
+
+            app.MapPost("/addReminder", [Authorize] async (AddReminderRequestModel addReminderRequest) =>
+            {
+                (bool success, List<SearchResultModel>? searchResults) = await aniWordService.GetSeriesAsync(addReminderRequest.SeriesName, strictSearch: false);
+
+                if (!success || !searchResults.HasItems())
+                    return Results.BadRequest();
+
+                SeriesModel? series = await DBService.GetSeriesAsync(addReminderRequest.SeriesName);
+
+                if (series is null)
+                    await DBService.InsertSeries(addReminderRequest.SeriesName, aniWordService);
+
+                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(addReminderRequest.Username, addReminderRequest.SeriesName);
+
+                if (usersSeries is null)
+                {
+                    UserModel? user = await DBService.GetUserByUsernameAsync(addReminderRequest.Username);
+                    series = await DBService.GetSeriesAsync(addReminderRequest.SeriesName);
+
+                    usersSeries = new()
+                    {
+                        Users = user,
+                        Series = series
+                    };
+
+                    await DBService.InsertUsersSeriesAsync(usersSeries);
+
+                    return Results.Ok();
+                }
+                else
+                {
+                   return Results.BadRequest();
+                }
+            });
+
             app.Run();
         }
     }

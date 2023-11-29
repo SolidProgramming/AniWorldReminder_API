@@ -51,7 +51,7 @@ namespace AniWorldReminder_API.Services
             }
         }
 
-        public async Task<UserModel?> GetUserAsync(string telegramChatId)
+        public async Task<UserModel?> GetUserByTelegramIdAsync(string telegramChatId)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
@@ -63,6 +63,21 @@ namespace AniWorldReminder_API.Services
             DynamicParameters parameters = new(dictionary);
 
             string query = "SELECT * FROM users WHERE TelegramChatId = @TelegramChatId";
+
+            return await connection.QueryFirstOrDefaultAsync<UserModel>(query, parameters);
+        }
+        public async Task<UserModel?> GetUserByUsernameAsync(string username)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@Username", username }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            string query = "SELECT * FROM users WHERE Username = @Username";
 
             return await connection.QueryFirstOrDefaultAsync<UserModel>(query, parameters);
         }
@@ -142,6 +157,160 @@ namespace AniWorldReminder_API.Services
             string query = "SELECT * FROM users WHERE Username = @Username";
 
             return await connection.QuerySingleOrDefaultAsync<UserModel>(query, parameters);
+        }
+
+        public async Task<SeriesModel?> GetSeriesAsync(string seriesName)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@Name", seriesName }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            string query = "SELECT * FROM series WHERE series.Name = @Name";
+
+            return await connection.QueryFirstOrDefaultAsync<SeriesModel>(query, parameters);
+        }
+
+        public async Task InsertSeries(string seriesName, IStreamingPortalService streamingPortalService)
+        { 
+            SeriesInfoModel? seriesInfo = await streamingPortalService.GetSeriesInfoAsync(seriesName);
+
+            if (seriesInfo is null)
+                return;
+
+            int seriesId = await InsertSeriesAsync(seriesInfo, streamingPortalService.StreamingPortal);
+
+            if (seriesId == -1)
+                return;
+
+            foreach (SeasonModel season in seriesInfo.Seasons)
+            {
+                await InsertEpisodesAsync(seriesId, season.Episodes);
+            }
+        }
+
+        private async Task<int> InsertSeriesAsync(SeriesInfoModel seriesInfo, StreamingPortal streamingPortal)
+        {
+            if (string.IsNullOrEmpty(seriesInfo.Name))
+                return -1;
+
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string streamingPortalIdQuery = "SELECT id FROM streamingportals WHERE streamingportals.Name = @Name";
+
+            string? streamingPortalName = StreamingPortalHelper.GetStreamingPortalName(streamingPortal);
+
+            if (string.IsNullOrEmpty(streamingPortalName))
+                return -1;
+
+            Dictionary<string, object> dictionaryPortalId = new()
+            {
+                { "@Name", streamingPortalName },
+            };
+
+            DynamicParameters parametersPortalId = new(dictionaryPortalId);
+
+            int streamingPortalId = await connection.QueryFirstOrDefaultAsync<int>(streamingPortalIdQuery, parametersPortalId);
+
+            if (streamingPortalId < 1)
+                return -1;
+
+            string query = "INSERT INTO series (StreamingPortalId, Name, SeasonCount, EpisodeCount, CoverArtUrl) VALUES (@StreamingPortalId, @Name, @SeasonCount, @EpisodeCount, @CoverArtUrl); " +
+                "select LAST_INSERT_ID()";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@StreamingPortalId", streamingPortalId },
+                { "@Name", seriesInfo.Name },
+                { "@SeasonCount", seriesInfo.SeasonCount },
+                { "@EpisodeCount", seriesInfo.Seasons.Last().EpisodeCount },
+                { "@CoverArtUrl", seriesInfo.CoverArtUrl },
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            return await connection.ExecuteScalarAsync<int>(query, parameters);
+        }
+        private async Task InsertEpisodesAsync(int seriesId, List<EpisodeModel> episodes)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "INSERT INTO episodes (SeriesId, Season, Episode, Name) VALUES (@SeriesId, @Season, @Episode, @Name)";
+
+            Dictionary<string, object> dictionary;
+
+            foreach (EpisodeModel episode in episodes)
+            {
+                if (string.IsNullOrEmpty(episode.Name))
+                    continue;
+
+                dictionary = new()
+                {
+                    { "@SeriesId",  seriesId},
+                    { "@Season",  episode.Season},
+                    { "@Episode",  episode.Episode},
+                    { "@Name",  episode.Name}
+                };
+
+                DynamicParameters parameters = new(dictionary);
+
+                await connection.ExecuteAsync(query, parameters);
+            }
+        }
+
+        public async Task<UsersSeriesModel?> GetUsersSeriesAsync(string username, string seriesName)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@Username", username },
+                { "@seriesName", seriesName }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            string query = "SELECT users.*, series.*, users_series.* FROM users " +
+                           "JOIN users_series ON users.id = users_series.UserId " +
+                           "JOIN series ON users_series.SeriesId = series.id " +
+                           "WHERE Username = @Username AND series.Name = @seriesName";
+
+            IEnumerable<UsersSeriesModel> users_series =
+                await connection.QueryAsync<UserModel, SeriesModel, UsersSeriesModel, UsersSeriesModel>
+                (query, (users, series, users_series) =>
+                {
+                    return new UsersSeriesModel()
+                    {
+                        Id = users_series.Id,
+                        Users = users,
+                        Series = series
+                    };
+                }, parameters);
+
+            return users_series.FirstOrDefault();
+        }
+        public async Task InsertUsersSeriesAsync(UsersSeriesModel usersSeries)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "INSERT INTO users_series (UserId, SeriesId) VALUES (@UserId, @SeriesId)";
+
+            if (usersSeries.Users is null || usersSeries.Series is null)
+                return;
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@UserId", usersSeries.Users.Id },
+                { "@SeriesId", usersSeries.Series.Id }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            await connection.ExecuteAsync(query, parameters);
         }
     }
 }
