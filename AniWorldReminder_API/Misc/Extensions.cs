@@ -15,7 +15,9 @@ namespace AniWorldReminder_API.Misc
         }
         public static string SearchSanitize(this string text)
         {
-            return text.Replace(' ', '+')
+            return text
+                .Replace("+", "%2B")
+                .Replace(' ', '+')
                 .Replace("'", "");
         }
         public static string UrlSanitize(this string text)
