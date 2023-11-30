@@ -162,6 +162,8 @@ namespace AniWorldReminder_API.Services
             SeriesInfoModel seriesInfo = new()
             {
                 Name = seriesName,
+                DirectLink = seriesUrl,
+                Description = GetDescription(doc)?.HtmlDecode(),
                 SeasonCount = seasonCount,
                 CoverArtUrl = GetCoverArtUrl(doc),
                 Seasons = await GetSeasonsAsync(searchSeriesName, seasonCount)
@@ -335,6 +337,26 @@ namespace AniWorldReminder_API.Services
             }
 
             return availableLanguages;
+        }
+
+        private string? GetDescription(HtmlDocument document)
+        {
+            HtmlNode? node = new HtmlNodeQueryBuilder()
+               .Query(document)
+                   .ByClass("seri_des")
+                   .Result;
+
+            if (node is null)
+                return null;
+
+            string showMoreText = "mehr anzeigen";
+
+            if (node.InnerText.EndsWith(showMoreText))
+            {
+                return node.InnerText.Remove(node.InnerText.Length - showMoreText.Length);
+            }
+
+            return node.InnerText;
         }
 
         private string? GetCoverArtUrl(HtmlDocument document)
