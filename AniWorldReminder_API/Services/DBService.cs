@@ -65,8 +65,7 @@ namespace AniWorldReminder_API.Services
             string query = "SELECT * FROM users WHERE TelegramChatId = @TelegramChatId";
 
             return await connection.QueryFirstOrDefaultAsync<UserModel>(query, parameters);
-        }
-        public async Task<UserModel?> GetUserByUsernameAsync(string username)
+        }        public async Task<UserModel?> GetUserByUsernameAsync(string username)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
@@ -81,7 +80,6 @@ namespace AniWorldReminder_API.Services
 
             return await connection.QueryFirstOrDefaultAsync<UserModel>(query, parameters);
         }
-
         public async Task DeleteVerifyTokenAsync(string telegramChatId)
         {
             using MySqlConnection connection = new(DBConnectionString);
@@ -100,7 +98,6 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
-
         public async Task UpdateVerificationStatusAsync(string telegramChatId, VerificationStatus verificationStatus)
         {
             using MySqlConnection connection = new(DBConnectionString);
@@ -119,7 +116,6 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
-
         public async Task SetVerifyStatusAsync(UserModel user)
         {
             using MySqlConnection connection = new(DBConnectionString);
@@ -142,7 +138,6 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
-
         public async Task<UserModel?> GetAuthUserAsync(string username)
         {
             using MySqlConnection connection = new(DBConnectionString);
@@ -158,7 +153,6 @@ namespace AniWorldReminder_API.Services
 
             return await connection.QuerySingleOrDefaultAsync<UserModel>(query, parameters);
         }
-
         public async Task<SeriesModel?> GetSeriesAsync(string seriesName)
         {
             using MySqlConnection connection = new(DBConnectionString);
@@ -174,7 +168,6 @@ namespace AniWorldReminder_API.Services
 
             return await connection.QueryFirstOrDefaultAsync<SeriesModel>(query, parameters);
         }
-
         public async Task InsertSeries(string seriesName, IStreamingPortalService streamingPortalService)
         { 
             SeriesInfoModel? seriesInfo = await streamingPortalService.GetSeriesInfoAsync(seriesName);
@@ -192,7 +185,6 @@ namespace AniWorldReminder_API.Services
                 await InsertEpisodesAsync(seriesId, season.Episodes);
             }
         }
-
         private async Task<int> InsertSeriesAsync(SeriesInfoModel seriesInfo, StreamingPortal streamingPortal)
         {
             if (string.IsNullOrEmpty(seriesInfo.Name))
@@ -261,7 +253,6 @@ namespace AniWorldReminder_API.Services
                 await connection.ExecuteAsync(query, parameters);
             }
         }
-
         public async Task<UsersSeriesModel?> GetUsersSeriesAsync(string username, string seriesName)
         {
             using MySqlConnection connection = new(DBConnectionString);
@@ -309,6 +300,21 @@ namespace AniWorldReminder_API.Services
             };
 
             DynamicParameters parameters = new(dictionary);
+
+            await connection.ExecuteAsync(query, parameters);
+        }
+        public async Task DeleteUsersSeriesAsync(UsersSeriesModel usersSeries)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@id", usersSeries.Id }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            string query = "DELETE FROM users_series WHERE id = @id";
 
             await connection.ExecuteAsync(query, parameters);
         }

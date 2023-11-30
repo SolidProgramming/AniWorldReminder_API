@@ -249,6 +249,21 @@ namespace AniWorldReminder_API
                 }
             });
 
+            app.MapGet("/removeReminder", [Authorize] async (string username, string seriesName) =>
+            {
+                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(username, seriesName);
+
+                if (usersSeries is null)
+                    return Results.BadRequest();
+
+                await DBService.DeleteUsersSeriesAsync(usersSeries);
+
+                string messageText = $"{Emoji.Checkmark} Reminder für <b>{usersSeries.Series.Name}</b> wurde gelöscht.";
+                await telegramBotService.SendMessageAsync(long.Parse(usersSeries.Users.TelegramChatId), messageText);
+
+                return Results.Ok();
+            });
+
             app.Run();
         }
     }

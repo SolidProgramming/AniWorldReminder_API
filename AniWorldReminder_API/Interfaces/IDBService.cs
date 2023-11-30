@@ -13,5 +13,6 @@
         Task InsertSeries(string seriesName, IStreamingPortalService streamingPortalService);
         Task<UsersSeriesModel?> GetUsersSeriesAsync(string telegramChatId, string seriesName);
         Task InsertUsersSeriesAsync(UsersSeriesModel usersSeries);
+        Task DeleteUsersSeriesAsync(UsersSeriesModel usersSeries);
     }
 }
