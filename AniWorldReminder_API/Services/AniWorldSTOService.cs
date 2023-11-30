@@ -72,12 +72,13 @@ namespace AniWorldReminder_API.Services
             if (!resp.IsSuccessStatusCode)
                 return (false, null);
 
-            string content = HttpUtility.HtmlDecode(await resp.Content.ReadAsStringAsync());
+            string content = await resp.Content.ReadAsStringAsync();
 
+            content = content.StripHtmlTags();
             try
-            {
-                List<SearchResultModel>? searchResults = System.Text.Json.JsonSerializer.Deserialize<List<SearchResultModel>>(content.StripHtmlTags());
-
+            {                
+                List<SearchResultModel>? searchResults = System.Text.Json.JsonSerializer.Deserialize<List<SearchResultModel>>(content);
+                
                 if (searchResults is null)
                     return (false, null);
 
@@ -105,6 +106,9 @@ namespace AniWorldReminder_API.Services
                 {
                     if (string.IsNullOrEmpty(result.Link))
                         continue;
+
+                    result.Title = result.Title.HtmlDecode();
+                    result.Description = result.Description.HtmlDecode();
 
                     html = await HttpClient.GetStringAsync($"{BaseUrl}{result.Link}");
                     doc.LoadHtml(html);
