@@ -203,6 +203,13 @@ namespace AniWorldReminder_API
                 return Results.Ok(response);
             });
 
+            app.MapGet("/getUserSeries", [Authorize] async (string username, string seriesName) =>
+            {
+                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(username, seriesName);
+
+                return JsonConvert.SerializeObject(usersSeries?.Series);
+            });
+
             app.MapPost("/addReminder", [Authorize] async (AddReminderRequestModel addReminderRequest) =>
             {
                 (bool success, List<SearchResultModel>? searchResults) = await aniWordService.GetSeriesAsync(addReminderRequest.SeriesName, strictSearch: true);
