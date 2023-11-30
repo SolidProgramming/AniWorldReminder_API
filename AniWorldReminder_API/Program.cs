@@ -237,6 +237,10 @@ namespace AniWorldReminder_API
 
                     await DBService.InsertUsersSeriesAsync(usersSeries);
 
+                    string messageText = $"{Emoji.Checkmark} Dein Reminder für <b>{series.Name}</b> wurde hinzugefügt.";
+
+                    await telegramBotService.SendMessageAsync(long.Parse(user.TelegramChatId), messageText);
+
                     return Results.Ok();
                 }
                 else
