@@ -12,7 +12,7 @@ namespace AniWorldReminder_API.Services
         private readonly ILogger<TelegramBotService> Logger;
         private TelegramBotClient BotClient = default!;
 
-        public TelegramBotService(ILogger<TelegramBotService> logger, IDBService dbService)
+        public TelegramBotService(ILogger<TelegramBotService> logger)
         {
             Logger = logger;
         }
