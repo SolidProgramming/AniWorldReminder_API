@@ -264,6 +264,13 @@ namespace AniWorldReminder_API
                 return Results.Ok();
             });
 
+            app.MapGet("/getAllUserSeries", [Authorize] async (string username) =>
+            {
+                List<UsersSeriesModel>? usersSeries = await DBService.GetUsersSeriesAsync(username);
+
+                return JsonConvert.SerializeObject(usersSeries?.Select(_ => _.Series));
+            });
+
             app.Run();
         }
     }

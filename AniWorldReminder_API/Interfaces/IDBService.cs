@@ -14,5 +14,6 @@
         Task<UsersSeriesModel?> GetUsersSeriesAsync(string telegramChatId, string seriesName);
         Task InsertUsersSeriesAsync(UsersSeriesModel usersSeries);
         Task DeleteUsersSeriesAsync(UsersSeriesModel usersSeries);
+        Task<List<UsersSeriesModel>?> GetUsersSeriesAsync(string username);
     }
 }

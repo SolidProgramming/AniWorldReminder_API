@@ -25,7 +25,10 @@ namespace AniWorldReminder_API.Misc
                 .Replace("~", "")
                 .Replace("'", "")
                 .Replace(",", "")
-                .Replace("’", "");
+                .Replace("’", "")
+                .Replace("+", "")
+                .Replace(".", "")
+                .Replace("--", "-");
         }        
         public static bool HasItems<T>(this IEnumerable<T> source) => source != null && source.Any();
         public static async Task<(bool success, string? ipv4)> GetIPv4(this HttpClient httpClient)

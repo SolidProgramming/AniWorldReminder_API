@@ -318,5 +318,35 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
+        public async Task<List<UsersSeriesModel>?> GetUsersSeriesAsync(string username)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@Username", username }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            string query = "SELECT users.*, series.*, users_series.* FROM users " +
+                           "JOIN users_series ON users.id = users_series.UserId " +
+                           "JOIN series ON users_series.SeriesId = series.id " +
+                           "WHERE Username = @Username";
+
+            IEnumerable<UsersSeriesModel> users_series =
+                await connection.QueryAsync<UserModel, SeriesModel, UsersSeriesModel, UsersSeriesModel>
+                (query, (users, series, users_series) =>
+                {
+                    return new UsersSeriesModel()
+                    {
+                        Id = users_series.Id,
+                        Users = users,
+                        Series = series
+                    };
+                }, parameters);
+
+            return users_series.ToList();
+        }
     }
 }
