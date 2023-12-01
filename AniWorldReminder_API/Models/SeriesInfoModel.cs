@@ -7,6 +7,7 @@
         public int SeasonCount { get; set; }
         public string? CoverArtUrl { get; set; }
         public string? DirectLink { get; set; }
+        public StreamingPortal StreamingPortal { get; set; }
         public List<SeasonModel> Seasons { get; set; } = new List<SeasonModel>();
     }
 }

@@ -76,9 +76,9 @@ namespace AniWorldReminder_API.Services
 
             content = content.StripHtmlTags();
             try
-            {                
+            {
                 List<SearchResultModel>? searchResults = System.Text.Json.JsonSerializer.Deserialize<List<SearchResultModel>>(content);
-                
+
                 if (searchResults is null)
                     return (false, null);
 
@@ -100,7 +100,7 @@ namespace AniWorldReminder_API.Services
                 if (filteredSearchResults.Count == 0)
                     return (false, null);
 
-                HtmlDocument doc = new();               
+                HtmlDocument doc = new();
 
                 foreach (SearchResultModel result in filteredSearchResults)
                 {
@@ -109,6 +109,7 @@ namespace AniWorldReminder_API.Services
 
                     result.Title = result.Title.HtmlDecode();
                     result.Description = result.Description.HtmlDecode();
+                    result.StreamingPortal = StreamingPortal;
 
                     html = await HttpClient.GetStringAsync($"{BaseUrl}{result.Link}");
                     doc.LoadHtml(html);
@@ -170,6 +171,7 @@ namespace AniWorldReminder_API.Services
                 Description = GetDescription(doc)?.HtmlDecode(),
                 SeasonCount = seasonCount,
                 CoverArtUrl = GetCoverArtUrl(doc),
+                StreamingPortal = StreamingPortal,
                 Seasons = await GetSeasonsAsync(searchSeriesName, seasonCount)
             };
 

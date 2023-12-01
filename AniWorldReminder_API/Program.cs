@@ -124,13 +124,30 @@ namespace AniWorldReminder_API
 
             app.MapGet("/getSeries", [Authorize] async (string seriesName) =>
             {
-                (bool success, List<SearchResultModel>? searchResults) = await aniWordService.GetSeriesAsync(seriesName);
-                return JsonConvert.SerializeObject(searchResults);
+                List<SearchResultModel> allSearchResults = new();
+
+                (bool _, List<SearchResultModel>? searchResultsAniWorld) = await aniWordService.GetSeriesAsync(seriesName);
+                (bool _, List<SearchResultModel>? searchResultsSTO) = await sTOService.GetSeriesAsync(seriesName);
+
+                if (searchResultsAniWorld.HasItems())
+                    allSearchResults.AddRange(searchResultsAniWorld);
+
+                if (searchResultsSTO.HasItems())
+                    allSearchResults.AddRange(searchResultsSTO);
+
+                allSearchResults = allSearchResults.DistinctBy(_ => _.Title).ToList();
+
+                return JsonConvert.SerializeObject(allSearchResults);
             }).WithOpenApi();
 
             app.MapGet("/getSeriesInfo", [Authorize] async (string seriesName) =>
             {
                 SeriesInfoModel? seriesInfo = await aniWordService.GetSeriesInfoAsync(seriesName);
+
+                if (seriesInfo is not null)
+                    return JsonConvert.SerializeObject(seriesInfo);
+
+                seriesInfo = await sTOService.GetSeriesInfoAsync(seriesName);
 
                 return JsonConvert.SerializeObject(seriesInfo);
             }).WithOpenApi();
@@ -187,7 +204,7 @@ namespace AniWorldReminder_API
             }).WithOpenApi();
 
             app.MapPost("/login", [AllowAnonymous] async (AuthUserModel authUser2) =>
-            {   
+            {
                 if (authUser2 is null || string.IsNullOrEmpty(authUser2.Username) || string.IsNullOrEmpty(authUser2.Password))
                     return Results.BadRequest();
 
@@ -215,7 +232,21 @@ namespace AniWorldReminder_API
                 SeriesModel? series = await DBService.GetSeriesAsync(addReminderRequest.SeriesName);
 
                 if (series is null)
-                    await DBService.InsertSeries(addReminderRequest.SeriesName, aniWordService);
+                {
+                    switch (addReminderRequest.StreamingPortal)
+                    {
+                        case StreamingPortal.Undefined:
+                            return Results.BadRequest();
+                        case StreamingPortal.AniWorld:
+                            await DBService.InsertSeries(addReminderRequest.SeriesName, aniWordService);
+                            break;
+                        case StreamingPortal.STO:
+                            await DBService.InsertSeries(addReminderRequest.SeriesName, sTOService);
+                            break;
+                        default:
+                            return Results.BadRequest();
+                    }
+                }                    
 
                 UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(addReminderRequest.Username, addReminderRequest.SeriesName);
 
@@ -251,7 +282,7 @@ namespace AniWorldReminder_API
                 }
                 else
                 {
-                   return Results.BadRequest();
+                    return Results.BadRequest();
                 }
             });
 

@@ -14,5 +14,6 @@ namespace AniWorldReminder_API.Models
         public string Link { get; set; }
 
         public string CoverArtUrl { get; set; }
+        public StreamingPortal StreamingPortal { get; set; }
     }
 }
