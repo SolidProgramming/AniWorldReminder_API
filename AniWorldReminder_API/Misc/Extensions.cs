@@ -30,6 +30,7 @@ namespace AniWorldReminder_API.Misc
                 .Replace("’", "")
                 .Replace("+", "")
                 .Replace(".", "")
+                .Replace("!", "")
                 .Replace("--", "-");
         }        
         public static bool HasItems<T>(this IEnumerable<T> source) => source != null && source.Any();
