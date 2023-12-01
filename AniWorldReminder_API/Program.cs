@@ -227,6 +227,10 @@ namespace AniWorldReminder_API
                 if (usersSeries is null)
                 {
                     UserModel? user = await DBService.GetUserByUsernameAsync(addReminderRequest.Username);
+
+                    if (user is null)
+                        return Results.BadRequest();
+
                     series = await DBService.GetSeriesAsync(addReminderRequest.SeriesName);
 
                     usersSeries = new()
@@ -239,7 +243,14 @@ namespace AniWorldReminder_API
 
                     string messageText = $"{Emoji.Checkmark} Dein Reminder für <b>{series.Name}</b> wurde hinzugefügt.";
 
-                    await telegramBotService.SendMessageAsync(long.Parse(user.TelegramChatId), messageText);
+                    if (string.IsNullOrEmpty(series.CoverArtUrl))
+                    {
+                        await telegramBotService.SendMessageAsync(long.Parse(user.TelegramChatId), messageText);
+                    }
+                    else
+                    {
+                        await telegramBotService.SendPhotoAsync(long.Parse(user.TelegramChatId), series.CoverArtUrl, messageText);
+                    }
 
                     return Results.Ok();
                 }
