@@ -212,11 +212,6 @@ namespace AniWorldReminder_API
 
             app.MapPost("/addReminder", [Authorize] async (AddReminderRequestModel addReminderRequest) =>
             {
-                (bool success, List<SearchResultModel>? searchResults) = await aniWordService.GetSeriesAsync(addReminderRequest.SeriesName, strictSearch: true);
-
-                if (!success || !searchResults.HasItems())
-                    return Results.BadRequest();
-
                 SeriesModel? series = await DBService.GetSeriesAsync(addReminderRequest.SeriesName);
 
                 if (series is null)

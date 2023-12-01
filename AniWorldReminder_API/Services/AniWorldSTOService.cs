@@ -94,7 +94,7 @@ namespace AniWorldReminder_API.Services
 
                 if (strictSearch)
                 {
-                    filteredSearchResults = filteredSearchResults.Where(_ => _.Title == seriesName).ToList();
+                    filteredSearchResults = filteredSearchResults.Where(_ => _.Title.HtmlDecode() == seriesName).ToList();
                 }
 
                 if (filteredSearchResults.Count == 0)
