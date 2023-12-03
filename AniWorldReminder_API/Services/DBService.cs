@@ -65,7 +65,8 @@ namespace AniWorldReminder_API.Services
             string query = "SELECT * FROM users WHERE TelegramChatId = @TelegramChatId";
 
             return await connection.QueryFirstOrDefaultAsync<UserModel>(query, parameters);
-        }        public async Task<UserModel?> GetUserByUsernameAsync(string username)
+        }
+        public async Task<UserModel?> GetUserByUsernameAsync(string username)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
@@ -169,7 +170,7 @@ namespace AniWorldReminder_API.Services
             return await connection.QueryFirstOrDefaultAsync<SeriesModel>(query, parameters);
         }
         public async Task InsertSeries(string seriesName, IStreamingPortalService streamingPortalService)
-        { 
+        {
             SeriesInfoModel? seriesInfo = await streamingPortalService.GetSeriesInfoAsync(seriesName);
 
             if (seriesInfo is null)
@@ -274,12 +275,13 @@ namespace AniWorldReminder_API.Services
             IEnumerable<UsersSeriesModel> users_series =
                 await connection.QueryAsync<UserModel, SeriesModel, UsersSeriesModel, UsersSeriesModel>
                 (query, (users, series, users_series) =>
-                {                   
+                {
                     return new UsersSeriesModel()
                     {
                         Id = users_series.Id,
                         Users = users,
-                        Series = series
+                        Series = series,
+                        LanguageFlag = users_series.LanguageFlag
                     };
                 }, parameters);
 

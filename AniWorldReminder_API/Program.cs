@@ -219,6 +219,11 @@ namespace AniWorldReminder_API
             {
                 UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(username, seriesName);
 
+                if(usersSeries is null || usersSeries.Series is null)
+                    return default;
+
+                usersSeries.Series.LanguageFlag = usersSeries.LanguageFlag;
+
                 return JsonConvert.SerializeObject(usersSeries?.Series);
             });
 
