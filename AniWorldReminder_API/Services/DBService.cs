@@ -231,7 +231,7 @@ namespace AniWorldReminder_API.Services
         {
             using MySqlConnection connection = new(DBConnectionString);
 
-            string query = "INSERT INTO episodes (SeriesId, Season, Episode, Name) VALUES (@SeriesId, @Season, @Episode, @Name)";
+            string query = "INSERT INTO episodes (SeriesId, Season, Episode, Name, LanguageFlag) VALUES (@SeriesId, @Season, @Episode, @Name, @LanguageFlag)";
 
             Dictionary<string, object> dictionary;
 
@@ -245,7 +245,8 @@ namespace AniWorldReminder_API.Services
                     { "@SeriesId",  seriesId},
                     { "@Season",  episode.Season},
                     { "@Episode",  episode.Episode},
-                    { "@Name",  episode.Name}
+                    { "@Name",  episode.Name},
+                    { "LanguageFlag", episode.Languages }
                 };
 
                 DynamicParameters parameters = new(dictionary);
