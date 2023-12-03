@@ -273,7 +273,7 @@ namespace AniWorldReminder_API.Services
             IEnumerable<UsersSeriesModel> users_series =
                 await connection.QueryAsync<UserModel, SeriesModel, UsersSeriesModel, UsersSeriesModel>
                 (query, (users, series, users_series) =>
-                {
+                {                   
                     return new UsersSeriesModel()
                     {
                         Id = users_series.Id,
@@ -288,7 +288,7 @@ namespace AniWorldReminder_API.Services
         {
             using MySqlConnection connection = new(DBConnectionString);
 
-            string query = "INSERT INTO users_series (UserId, SeriesId) VALUES (@UserId, @SeriesId)";
+            string query = "INSERT INTO users_series (UserId, SeriesId, LanguageFlag) VALUES (@UserId, @SeriesId, @LanguageFlag)";
 
             if (usersSeries.Users is null || usersSeries.Series is null)
                 return;
@@ -296,7 +296,8 @@ namespace AniWorldReminder_API.Services
             Dictionary<string, object> dictionary = new()
             {
                 { "@UserId", usersSeries.Users.Id },
-                { "@SeriesId", usersSeries.Series.Id }
+                { "@SeriesId", usersSeries.Series.Id },
+                { "@LanguageFlag", usersSeries.LanguageFlag },
             };
 
             DynamicParameters parameters = new(dictionary);

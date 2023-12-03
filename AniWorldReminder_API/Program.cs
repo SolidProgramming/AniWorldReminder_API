@@ -12,11 +12,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Configuration;
-using System;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using Telegram.Bot.Types;
 
 namespace AniWorldReminder_API
 {
@@ -246,7 +241,7 @@ namespace AniWorldReminder_API
                         default:
                             return Results.BadRequest();
                     }
-                }                    
+                }
 
                 UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(addReminderRequest.Username, addReminderRequest.SeriesName);
 
@@ -262,7 +257,8 @@ namespace AniWorldReminder_API
                     usersSeries = new()
                     {
                         Users = user,
-                        Series = series
+                        Series = series,
+                        LanguageFlag = addReminderRequest.Language
                     };
 
                     await DBService.InsertUsersSeriesAsync(usersSeries);
