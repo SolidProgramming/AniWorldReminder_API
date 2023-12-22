@@ -173,7 +173,7 @@ namespace AniWorldReminder_API
                     return Results.ValidationProblem(problemsList);
                 }
 
-                UserModel? user = await DBService.GetUserByTelegramIdAsync(token.TelegramChatId!);
+                UserModel? user = await DBService.GetUserByTelegramIdAsync(token.TelegramChatId);
 
                 if (user is null || string.IsNullOrEmpty(user.TelegramChatId))
                     return Results.NotFound("User not found!");
