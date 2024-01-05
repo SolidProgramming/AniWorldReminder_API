@@ -45,7 +45,7 @@ namespace AniWorldReminder_API.Services
         {
             await BotClient.SendChatActionAsync(chatId, chatAction);
         }
-        public async Task<Message?> SendMessageAsync(long chatId, string text, int? replyId = null, bool showLinkPreview = true, ParseMode parseMode = ParseMode.Html, ReplyKeyboardMarkup? rkm = null)
+        public async Task<Message?> SendMessageAsync(long chatId, string text, int? replyId = null, bool showLinkPreview = true, ParseMode parseMode = ParseMode.Html, bool silentMessage = false, ReplyKeyboardMarkup? rkm = null)
         {
             try
             {
@@ -55,7 +55,8 @@ namespace AniWorldReminder_API.Services
                     replyToMessageId: replyId,
                     parseMode: parseMode,
                     disableWebPagePreview: !showLinkPreview,
-                    replyMarkup: rkm);
+                    replyMarkup: rkm,
+                    disableNotification: silentMessage);
             }
             catch (Exception)
             {
@@ -63,7 +64,7 @@ namespace AniWorldReminder_API.Services
             }            
         }
 
-        public async Task<Message?> SendPhotoAsync(long chatId, string photoUrl, string? text = null, ParseMode parseMode = ParseMode.Html)
+        public async Task<Message?> SendPhotoAsync(long chatId, string photoUrl, string? text = null, ParseMode parseMode = ParseMode.Html, bool silentMessage = false)
         {
             try
             {
@@ -71,7 +72,8 @@ namespace AniWorldReminder_API.Services
                                chatId,
                          new InputFileUrl(photoUrl),
                                caption: text,
-                               parseMode: parseMode);
+                               parseMode: parseMode,
+                               disableNotification: silentMessage);
             }
             catch (Exception)
             {

@@ -352,5 +352,42 @@ namespace AniWorldReminder_API.Services
 
             return users_series.ToList();
         }
+        public async Task<UserWebsiteSettings?> GetUserWebsiteSettings(string username)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@Username", username }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            string query = "SELECT users_settings.* FROM users_settings " +
+                "LEFT JOIN users ON users_settings.UserId = users.id " +
+                "WHERE users.Username = @Username";
+
+            return await connection.QuerySingleOrDefaultAsync<UserWebsiteSettings>(query, parameters);
+        }
+        public async Task UpdateUserWebsiteSettings(UserWebsiteSettings userWebsiteSettings)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "UPDATE users_settings " +
+                           "SET users_settings.TelegramDisableNotifications = @TelegramDisableNotifications, " +
+                           "users_settings.TelegramNoCoverArtNotifications = @TelegramNoCoverArtNotifications " +
+                           "WHERE users_settings.UserId = @UserId";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@TelegramDisableNotifications", userWebsiteSettings.TelegramDisableNotifications },
+                { "@TelegramNoCoverArtNotifications", userWebsiteSettings.TelegramNoCoverArtNotifications },
+                { "@UserId", userWebsiteSettings.UserId }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            await connection.ExecuteAsync(query, parameters);
+        }
     }
 }

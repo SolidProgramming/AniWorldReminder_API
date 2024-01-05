@@ -309,6 +309,20 @@ namespace AniWorldReminder_API
                 return JsonConvert.SerializeObject(usersSeries?.Select(_ => _.Series));
             });
 
+            app.MapGet("/getUserSettings", [Authorize] async (string username) =>
+            {
+                UserWebsiteSettings? userWebsiteSettings = await DBService.GetUserWebsiteSettings(username);
+
+                return JsonConvert.SerializeObject(userWebsiteSettings);
+            });
+
+            app.MapPost("/setUserSettings", [Authorize] async (UserWebsiteSettings userWebsiteSettings) =>
+            {
+                await DBService.UpdateUserWebsiteSettings(userWebsiteSettings);
+
+                return Results.Ok();
+            });
+
             app.Run();
         }
     }

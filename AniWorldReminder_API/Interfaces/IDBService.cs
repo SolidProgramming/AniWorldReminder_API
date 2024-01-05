@@ -15,5 +15,7 @@
         Task InsertUsersSeriesAsync(UsersSeriesModel usersSeries);
         Task DeleteUsersSeriesAsync(UsersSeriesModel usersSeries);
         Task<List<UsersSeriesModel>?> GetUsersSeriesAsync(string username);
+        Task<UserWebsiteSettings?> GetUserWebsiteSettings(string username);
+        Task UpdateUserWebsiteSettings(UserWebsiteSettings userWebsiteSettings);
     }
 }
