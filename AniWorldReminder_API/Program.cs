@@ -213,7 +213,7 @@ namespace AniWorldReminder_API
                 JwtResponseModel response = new(jwt!);
 
                 return Results.Ok(response);
-            });
+            }).WithOpenApi();
 
             app.MapGet("/getUserSeries", [Authorize] async (string username, string seriesName) =>
             {
@@ -225,7 +225,7 @@ namespace AniWorldReminder_API
                 usersSeries.Series.LanguageFlag = usersSeries.LanguageFlag;
 
                 return JsonConvert.SerializeObject(usersSeries?.Series);
-            });
+            }).WithOpenApi();
 
             app.MapPost("/addReminder", [Authorize] async (AddReminderRequestModel addReminderRequest) =>
             {
@@ -285,7 +285,7 @@ namespace AniWorldReminder_API
                 {
                     return Results.BadRequest();
                 }
-            });
+            }).WithOpenApi();
 
             app.MapGet("/removeReminder", [Authorize] async (string username, string seriesName) =>
             {
@@ -300,28 +300,28 @@ namespace AniWorldReminder_API
                 await telegramBotService.SendMessageAsync(long.Parse(usersSeries.Users.TelegramChatId), messageText);
 
                 return Results.Ok();
-            });
+            }).WithOpenApi();
 
             app.MapGet("/getAllUserSeries", [Authorize] async (string username) =>
             {
                 List<UsersSeriesModel>? usersSeries = await DBService.GetUsersSeriesAsync(username);
 
                 return JsonConvert.SerializeObject(usersSeries?.Select(_ => _.Series));
-            });
+            }).WithOpenApi();
 
             app.MapGet("/getUserSettings", [Authorize] async (string username) =>
             {
                 UserWebsiteSettings? userWebsiteSettings = await DBService.GetUserWebsiteSettings(username);
 
                 return JsonConvert.SerializeObject(userWebsiteSettings);
-            });
+            }).WithOpenApi();
 
             app.MapPost("/setUserSettings", [Authorize] async (UserWebsiteSettings userWebsiteSettings) =>
             {
                 await DBService.UpdateUserWebsiteSettings(userWebsiteSettings);
 
                 return Results.Ok();
-            });
+            }).WithOpenApi();
 
             app.Run();
         }
