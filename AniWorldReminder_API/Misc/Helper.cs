@@ -1,6 +1,7 @@
 ﻿using AniWorldReminder_API.Models;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace AniWorldReminder_API.Misc
 {
@@ -38,11 +39,16 @@ namespace AniWorldReminder_API.Misc
 
             return result;
         }
-
         public static bool IsBase64String(string base64)
         {
             Span<byte> buffer = new Span<byte>(new byte[base64.Length]);
             return Convert.TryFromBase64String(base64, buffer, out int bytesParsed);
         }
+        //public static async Task<string> GetEpisodeM3U8(string streamUrl)
+        //{
+        //    string html = await HttpClient.GetStringAsync(streamUrl);
+
+        //    return new Regex("'hls': '(.*?)',").Match(html).Groups[1].Value;
+        //}
     }
 }

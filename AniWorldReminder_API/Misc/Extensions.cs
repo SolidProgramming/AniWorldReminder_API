@@ -40,5 +40,23 @@ namespace AniWorldReminder_API.Misc
 
             return (!string.IsNullOrEmpty(result), result);
         }
+
+        private static Dictionary<Language, string> VOELanguageKeyCollection = new Dictionary<Language, string>()
+        {
+            { Language.GerDub, "1"},
+            { Language.GerSub, "3"},
+            { Language.EngDub, "2"},
+            { Language.EngSub, "2"},
+        };
+
+        public static string? ToVOELanguageKey(this Language language)
+        {
+            if (VOELanguageKeyCollection.ContainsKey(language))
+            {
+                return VOELanguageKeyCollection[language];
+            }
+
+            return null;
+        }
     }
 }

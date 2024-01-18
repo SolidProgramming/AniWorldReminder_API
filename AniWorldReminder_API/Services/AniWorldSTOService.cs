@@ -4,6 +4,8 @@ using System.Text;
 using System.Xml;
 using HtmlAgilityPack;
 using System.Web;
+using AniWorldReminder_API.Models;
+using Telegram.Bot.Types;
 
 namespace AniWorldReminder_API.Services
 {
@@ -245,15 +247,19 @@ namespace AniWorldReminder_API.Services
 
         private async Task<List<EpisodeModel>?> GetSeasonEpisodesAsync(string seriesName, int season)
         {
-            string seasonUrl;
+            string seasonUrl, episodeUrl, host;
 
             switch (StreamingPortal)
             {
                 case StreamingPortal.STO:
                     seasonUrl = $"{BaseUrl}/serie/stream/{seriesName}/staffel-{season}";
+                    episodeUrl = $"{BaseUrl}/serie/stream/{seriesName}/staffel-{0}/episode-{1}";
+                    host = "s.to";
                     break;
                 case StreamingPortal.AniWorld:
                     seasonUrl = $"{BaseUrl}/anime/stream/{seriesName}/staffel-{season}";
+                    episodeUrl = $"{BaseUrl}/anime/stream/{seriesName}/staffel-{0}/episode-{1}";
+                    host = "aniworld.to";
                     break;
                 default:
                     return null;
@@ -294,19 +300,41 @@ namespace AniWorldReminder_API.Services
                 if (string.IsNullOrEmpty(episodeName))
                     continue;
 
+                Uri uri = new(string.Format(episodeUrl, season, i));
+                string res = await HttpClient.GetStringAsync(uri);
+
+                Dictionary<Language, List<string>> languageRedirectLinks = GetLanguageRedirectLinks(res);
+
+                if (languageRedirectLinks == null)
+                    continue;
+
+                string? browserUrl = null; //string? m3u8Url = null, 
+
+                foreach (KeyValuePair<Language, List<string>> kvp in languageRedirectLinks)
+                {
+                    browserUrl = "https://" + host + kvp.Value[0];
+
+                    if (string.IsNullOrEmpty(browserUrl))
+                        continue;
+
+                    //m3u8Url = await GetEpisodeM3U8(browserUrl);
+                }
+
                 episodes.Add(new EpisodeModel()
                 {
                     Name = episodeName,
                     Episode = i,
                     Season = season,
-                    Languages = GetEpisodeLanguages(i, html)
+                    Languages = GetEpisodeLanguages(i, html),
+                    DirectViewLink = browserUrl,
+                    //M3U8DirectLink = m3u8Url,
                 });
 
                 i++;
             }
 
             return episodes;
-        }
+        }        
 
         private Language GetEpisodeLanguages(int episode, string html)
         {
@@ -376,6 +404,77 @@ namespace AniWorldReminder_API.Services
                 return null;
 
             return BaseUrl + node.Attributes["data-src"].Value;
+        }
+
+        private static Dictionary<Language, List<string>> GetLanguageRedirectLinks(string html)
+        {
+            Dictionary<Language, List<string>> languageRedirectLinks = new();
+
+            HtmlDocument document = new();
+            document.LoadHtml(html);
+
+            List<HtmlNode> languageRedirectNodes = new HtmlNodeQueryBuilder()
+                .Query(document)
+                    .GetNodesByQuery("//div/a/i[@title='Hoster VOE']");
+
+            if (languageRedirectNodes == null || languageRedirectNodes.Count == 0)
+                return null;
+
+            List<string> redirectLinks;
+
+
+            redirectLinks = GetLanguageRedirectLinksNodes(Language.GerDub);
+
+            if (redirectLinks.Count > 0)
+            {
+                languageRedirectLinks.Add(Language.GerDub, redirectLinks);
+            }
+
+            redirectLinks = GetLanguageRedirectLinksNodes(Language.EngDub);
+
+            if (redirectLinks.Count > 0)
+            {
+                languageRedirectLinks.Add(Language.EngDub, redirectLinks);
+            }
+
+            redirectLinks = GetLanguageRedirectLinksNodes(Language.EngSub);
+
+            if (redirectLinks.Count > 0)
+            {
+                languageRedirectLinks.Add(Language.EngSub, redirectLinks);
+            }
+
+            redirectLinks = GetLanguageRedirectLinksNodes(Language.GerSub);
+
+            if (redirectLinks.Count > 0)
+            {
+                languageRedirectLinks.Add(Language.GerSub, redirectLinks);
+            }
+
+            return languageRedirectLinks;
+
+
+            List<string> GetLanguageRedirectLinksNodes(Language language)
+            {
+                List<HtmlNode> redirectNodes = languageRedirectNodes.Where(_ => _.ParentNode.ParentNode.ParentNode.Attributes["data-lang-key"].Value == language.ToVOELanguageKey())
+                    .ToList();
+
+                List<string> filteredRedirectLinks = new();
+
+                foreach (HtmlNode node in redirectNodes)
+                {
+                    if (node == null ||
+                   node.ParentNode == null ||
+                   node.ParentNode.ParentNode == null ||
+                   node.ParentNode.ParentNode.ParentNode == null ||
+                   !node.ParentNode.ParentNode.ParentNode.Attributes.Contains("data-link-target"))
+                        continue;
+
+                    filteredRedirectLinks.Add(node.ParentNode.ParentNode.ParentNode.Attributes["data-link-target"].Value);
+                }
+
+                return filteredRedirectLinks;
+            }
         }
 
         public HttpClient GetHttpClient()

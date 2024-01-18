@@ -8,5 +8,7 @@
         public int Episode { get; set; }
         public string? Name { get; set; }
         public Language Languages { get; set; }
+        public string? M3U8DirectLink { get; set; }
+        public string? DirectViewLink { get; set; }
     }
 }
