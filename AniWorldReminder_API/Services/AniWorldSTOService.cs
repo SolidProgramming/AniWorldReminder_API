@@ -253,12 +253,12 @@ namespace AniWorldReminder_API.Services
             {
                 case StreamingPortal.STO:
                     seasonUrl = $"{BaseUrl}/serie/stream/{seriesName}/staffel-{season}";
-                    episodeUrl = $"{BaseUrl}/serie/stream/{seriesName}/staffel-{0}/episode-{1}";
+                    episodeUrl = $"{BaseUrl}/serie/stream/{seriesName}" + "/staffel-{0}/episode-{1}";
                     host = "s.to";
                     break;
                 case StreamingPortal.AniWorld:
                     seasonUrl = $"{BaseUrl}/anime/stream/{seriesName}/staffel-{season}";
-                    episodeUrl = $"{BaseUrl}/anime/stream/{seriesName}/staffel-{0}/episode-{1}";
+                    episodeUrl = $"{BaseUrl}/anime/stream/{seriesName}" + "/staffel-{0}/episode-{1}";
                     host = "aniworld.to";
                     break;
                 default:
@@ -334,7 +334,7 @@ namespace AniWorldReminder_API.Services
             }
 
             return episodes;
-        }        
+        }
 
         private Language GetEpisodeLanguages(int episode, string html)
         {
