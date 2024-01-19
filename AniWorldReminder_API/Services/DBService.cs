@@ -4,15 +4,10 @@ using MySql.Data.MySqlClient;
 
 namespace AniWorldReminder_API.Services
 {
-    public class DBService : IDBService
+    public class DBService(ILogger<DBService> logger) : IDBService
     {
-        private readonly ILogger<DBService> Logger;
         private string? DBConnectionString;
 
-        public DBService(ILogger<DBService> logger)
-        {
-            Logger = logger;
-        }
         public async Task<bool> InitAsync()
         {
             DatabaseSettingsModel? settings = SettingsHelper.ReadSettings<DatabaseSettingsModel>() ?? throw new Exception("");
@@ -21,7 +16,7 @@ namespace AniWorldReminder_API.Services
             if (!await TestDBConnectionAsync())
                 return false;
 
-            Logger.LogInformation($"{DateTime.Now} | DB Service initialized");
+            logger.LogInformation($"{DateTime.Now} | DB Service initialized");
 
             return true;
         }
@@ -35,18 +30,18 @@ namespace AniWorldReminder_API.Services
                     await connection.OpenAsync();
                 }
 
-                Logger.LogInformation($"{DateTime.Now} | Database reachablility ensured");
+                logger.LogInformation($"{DateTime.Now} | Database reachablility ensured");
 
                 return true;
             }
             catch (MySqlException ex)
             {
-                Logger.LogError($"{DateTime.Now} | DB connection could not be established. Error: " + ex.ToString());
+                logger.LogError($"{DateTime.Now} | DB connection could not be established. Error: " + ex.ToString());
                 return false;
             }
             catch (Exception ex)
             {
-                Logger.LogError($"{DateTime.Now} | {ex}");
+                logger.LogError($"{DateTime.Now} | {ex}");
                 return false;
             }
         }

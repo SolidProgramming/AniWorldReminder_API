@@ -1,12 +1,7 @@
 ﻿namespace AniWorldReminder_API.Models
 {
-    public class JwtResponseModel
+    public class JwtResponseModel(string token)
     {
-        public JwtResponseModel(string token)
-        {
-                Token = token;
-        }
-
-        public string Token { get; init; }
+        public string Token { get; init; } = token;
     }
 }

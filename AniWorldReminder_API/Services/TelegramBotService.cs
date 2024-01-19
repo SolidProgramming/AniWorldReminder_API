@@ -7,15 +7,9 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace AniWorldReminder_API.Services
 {
-    public class TelegramBotService : ITelegramBotService
+    public class TelegramBotService(ILogger<TelegramBotService> logger) : ITelegramBotService
     {
-        private readonly ILogger<TelegramBotService> Logger;
         private TelegramBotClient BotClient = default!;
-
-        public TelegramBotService(ILogger<TelegramBotService> logger)
-        {
-            Logger = logger;
-        }
 
         public async Task<bool> Init()
         {
@@ -23,7 +17,7 @@ namespace AniWorldReminder_API.Services
 
             if (settings is null)
             {
-                Logger.LogError($"{DateTime.Now} | {ErrorMessage.ReadSettings}");
+                logger.LogError($"{DateTime.Now} | {ErrorMessage.ReadSettings}");
                 return false;
             }
 
@@ -33,11 +27,11 @@ namespace AniWorldReminder_API.Services
 
             if (bot_me is null)
             {
-                Logger.LogError($"{DateTime.Now} | {ErrorMessage.RetrieveBotInfo}");
+                logger.LogError($"{DateTime.Now} | {ErrorMessage.RetrieveBotInfo}");
                 return false;
             }
 
-            Logger.LogInformation($"{DateTime.Now} | Telegram Bot Service initialized");
+            logger.LogInformation($"{DateTime.Now} | Telegram Bot Service initialized");
 
             return true;
         }

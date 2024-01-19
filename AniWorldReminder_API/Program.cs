@@ -119,7 +119,7 @@ namespace AniWorldReminder_API
 
             app.MapGet("/getSeries", [Authorize] async (string seriesName) =>
             {
-                List<SearchResultModel> allSearchResults = new();
+                List<SearchResultModel> allSearchResults = [];
 
                 (bool _, List<SearchResultModel>? searchResultsAniWorld) = await aniWordService.GetSeriesAsync(seriesName);
                 (bool _, List<SearchResultModel>? searchResultsSTO) = await sTOService.GetSeriesAsync(seriesName);
@@ -156,7 +156,7 @@ namespace AniWorldReminder_API
 
                 if (!token.Validated)
                 {
-                    List<string> problems = new();
+                    List<string> problems = [];
 
                     foreach (TokenValidationStatus tokenStatus in token.Errors)
                     {
@@ -321,6 +321,11 @@ namespace AniWorldReminder_API
                 await DBService.UpdateUserWebsiteSettings(userWebsiteSettings);
 
                 return Results.Ok();
+            }).WithOpenApi();
+
+            app.MapGet("/getSeasonEpisodesLinks", [Authorize] async (string seriesName, [FromBody] SeasonModel season) =>
+            {
+                return await aniWordService.GetSeasonEpisodesLinks(seriesName, season);
             }).WithOpenApi();
 
             app.Run();

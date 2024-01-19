@@ -6,50 +6,38 @@ using HtmlAgilityPack;
 using System.Web;
 using AniWorldReminder_API.Models;
 using Telegram.Bot.Types;
+using Microsoft.Extensions.Hosting;
 
 namespace AniWorldReminder_API.Services
 {
-    public class AniWorldSTOService : IStreamingPortalService
+    public class AniWorldSTOService(ILogger<AniWorldSTOService> logger, Interfaces.IHttpClientFactory httpClientFactory, string baseUrl, string name, StreamingPortal streamingPortal) : IStreamingPortalService
     {
-        private readonly ILogger<AniWorldSTOService> Logger;
-        private readonly Interfaces.IHttpClientFactory HttpClientFactory;
         private HttpClient? HttpClient;
 
-        public string BaseUrl { get; init; }
-        public string Name { get; init; }
-        public StreamingPortal StreamingPortal { get; init; }
-
-        public AniWorldSTOService(ILogger<AniWorldSTOService> logger, Interfaces.IHttpClientFactory httpClientFactory, string baseUrl, string name, StreamingPortal streamingPortal)
-        {
-            BaseUrl = baseUrl;
-            Name = name;
-
-            HttpClientFactory = httpClientFactory;
-
-            Logger = logger;
-            StreamingPortal = streamingPortal;
-        }
+        public string BaseUrl { get; init; } = baseUrl;
+        public string Name { get; init; } = name;
+        public StreamingPortal StreamingPortal { get; init; } = streamingPortal;
 
         public async Task<bool> InitAsync(WebProxy? proxy = null)
         {
             if (proxy is null)
             {
-                HttpClient = HttpClientFactory.CreateHttpClient<AniWorldSTOService>();
+                HttpClient = httpClientFactory.CreateHttpClient<AniWorldSTOService>();
             }
             else
             {
-                HttpClient = HttpClientFactory.CreateHttpClient<AniWorldSTOService>(proxy);
+                HttpClient = httpClientFactory.CreateHttpClient<AniWorldSTOService>(proxy);
             }
 
             (bool success, string? ipv4) = await HttpClient.GetIPv4();
 
             if (!success)
             {
-                Logger.LogError($"{DateTime.Now} | {Name} Service unable to retrieve WAN IP");
+                logger.LogError($"{DateTime.Now} | {Name} Service unable to retrieve WAN IP");
             }
             else
             {
-                Logger.LogInformation($"{DateTime.Now} | {Name} Service initialized with WAN IP {ipv4}");
+                logger.LogInformation($"{DateTime.Now} | {Name} Service initialized with WAN IP {ipv4}");
             }
 
             return success;
@@ -192,7 +180,7 @@ namespace AniWorldReminder_API.Services
 
         private async Task<List<SeasonModel>> GetSeasonsAsync(string searchSeriesName, int seasonCount)
         {
-            List<SeasonModel> seasons = new();
+            List<SeasonModel> seasons = [];
 
             for (int i = 0; i < seasonCount; i++)
             {
@@ -247,18 +235,16 @@ namespace AniWorldReminder_API.Services
 
         private async Task<List<EpisodeModel>?> GetSeasonEpisodesAsync(string seriesName, int season)
         {
-            string seasonUrl, episodeUrl, host;
+            string seasonUrl, host;
 
             switch (StreamingPortal)
             {
                 case StreamingPortal.STO:
                     seasonUrl = $"{BaseUrl}/serie/stream/{seriesName}/staffel-{season}";
-                    episodeUrl = $"{BaseUrl}/serie/stream/{seriesName}" + "/staffel-{0}/episode-{1}";
                     host = "s.to";
                     break;
                 case StreamingPortal.AniWorld:
                     seasonUrl = $"{BaseUrl}/anime/stream/{seriesName}/staffel-{season}";
-                    episodeUrl = $"{BaseUrl}/anime/stream/{seriesName}" + "/staffel-{0}/episode-{1}";
                     host = "aniworld.to";
                     break;
                 default:
@@ -285,7 +271,7 @@ namespace AniWorldReminder_API.Services
             if (episodeNodes is null || episodeNodes.Count == 0)
                 return null;
 
-            List<EpisodeModel> episodes = new();
+            List<EpisodeModel> episodes = [];
 
             int i = 1;
 
@@ -300,7 +286,42 @@ namespace AniWorldReminder_API.Services
                 if (string.IsNullOrEmpty(episodeName))
                     continue;
 
-                Uri uri = new(string.Format(episodeUrl, season, i));
+                episodes.Add(new EpisodeModel()
+                {
+                    Name = episodeName,
+                    Episode = i,
+                    Season = season,
+                    Languages = GetEpisodeLanguages(i, html)
+                });
+
+                i++;
+            }
+
+            return episodes;
+        }
+
+        public async Task<SeasonModel?> GetSeasonEpisodesLinks(string seriesName, SeasonModel season)
+        {
+            string host, episodeUrl = "";
+            seriesName = seriesName.UrlSanitize();
+
+            foreach (EpisodeModel episode in season.Episodes)
+            {
+                switch (StreamingPortal)
+                {
+                    case StreamingPortal.STO:
+                        episodeUrl = $"{BaseUrl}/serie/stream/{seriesName}" + "/staffel-{0}/episode-{1}";
+                        host = "s.to";
+                        break;
+                    case StreamingPortal.AniWorld:
+                        episodeUrl = $"{BaseUrl}/anime/stream/{seriesName}" + "/staffel-{0}/episode-{1}";
+                        host = "aniworld.to";
+                        break;
+                    default:
+                        continue;
+                }                
+
+                Uri uri = new(string.Format(episodeUrl, episode.Season, episode.Episode));
                 string res = await HttpClient.GetStringAsync(uri);
 
                 Dictionary<Language, List<string>> languageRedirectLinks = GetLanguageRedirectLinks(res);
@@ -308,7 +329,7 @@ namespace AniWorldReminder_API.Services
                 if (languageRedirectLinks == null)
                     continue;
 
-                string? browserUrl = null; //string? m3u8Url = null, 
+                string? browserUrl = null;
 
                 foreach (KeyValuePair<Language, List<string>> kvp in languageRedirectLinks)
                 {
@@ -320,20 +341,10 @@ namespace AniWorldReminder_API.Services
                     //m3u8Url = await GetEpisodeM3U8(browserUrl);
                 }
 
-                episodes.Add(new EpisodeModel()
-                {
-                    Name = episodeName,
-                    Episode = i,
-                    Season = season,
-                    Languages = GetEpisodeLanguages(i, html),
-                    DirectViewLink = browserUrl,
-                    //M3U8DirectLink = m3u8Url,
-                });
-
-                i++;
+                episode.DirectViewLink = browserUrl;
             }
 
-            return episodes;
+            return season;
         }
 
         private Language GetEpisodeLanguages(int episode, string html)
@@ -408,7 +419,7 @@ namespace AniWorldReminder_API.Services
 
         private static Dictionary<Language, List<string>> GetLanguageRedirectLinks(string html)
         {
-            Dictionary<Language, List<string>> languageRedirectLinks = new();
+            Dictionary<Language, List<string>> languageRedirectLinks = [];
 
             HtmlDocument document = new();
             document.LoadHtml(html);
@@ -459,7 +470,7 @@ namespace AniWorldReminder_API.Services
                 List<HtmlNode> redirectNodes = languageRedirectNodes.Where(_ => _.ParentNode.ParentNode.ParentNode.Attributes["data-lang-key"].Value == language.ToVOELanguageKey())
                     .ToList();
 
-                List<string> filteredRedirectLinks = new();
+                List<string> filteredRedirectLinks = [];
 
                 foreach (HtmlNode node in redirectNodes)
                 {
