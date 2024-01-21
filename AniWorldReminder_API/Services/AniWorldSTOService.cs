@@ -5,7 +5,8 @@ using HtmlAgilityPack;
 
 namespace AniWorldReminder_API.Services
 {
-    public class AniWorldSTOService(ILogger<AniWorldSTOService> logger, Interfaces.IHttpClientFactory httpClientFactory, string baseUrl, string name, StreamingPortal streamingPortal) : IStreamingPortalService
+    public class AniWorldSTOService(ILogger<AniWorldSTOService> logger, Interfaces.IHttpClientFactory httpClientFactory, string baseUrl, string name, StreamingPortal streamingPortal) 
+        : IStreamingPortalService
     {
         private HttpClient? HttpClient;
 

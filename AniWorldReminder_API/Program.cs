@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace AniWorldReminder_API
 {
@@ -323,9 +324,18 @@ namespace AniWorldReminder_API
                 return Results.Ok();
             }).WithOpenApi();
 
-            app.MapGet("/getSeasonEpisodesLinks", [Authorize] async (string seriesName, [FromBody] SeasonModel season) =>
+            app.MapGet("/getSeasonEpisodesLinks", [Authorize] async (string seriesName, string streamingPortal, [FromBody] SeasonModel season) =>
             {
-                return await aniWordService.GetSeasonEpisodesLinksAsync(seriesName, season);
+                if (streamingPortal.ToLower() == StreamingPortal.STO.ToString().ToLower())
+                {
+                    return await sTOService.GetSeasonEpisodesLinksAsync(seriesName, season);
+                }
+                else if (streamingPortal.ToLower() == StreamingPortal.AniWorld.ToString().ToLower())
+                {
+                    return await aniWordService.GetSeasonEpisodesLinksAsync(seriesName, season);
+                }
+
+                return null;
             }).WithOpenApi();
 
             app.Run();

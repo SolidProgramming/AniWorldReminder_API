@@ -46,7 +46,7 @@ namespace AniWorldReminder_API.Misc
             { Language.GerDub, "1"},
             { Language.GerSub, "3"},
             { Language.EngDub, "2"},
-            { Language.EngSub, "2"},
+            { Language.EngSub, "4"},
         };
 
         public static string? ToVOELanguageKey(this Language language)
