@@ -325,7 +325,7 @@ namespace AniWorldReminder_API
 
             app.MapGet("/getSeasonEpisodesLinks", [Authorize] async (string seriesName, [FromBody] SeasonModel season) =>
             {
-                return await aniWordService.GetSeasonEpisodesLinks(seriesName, season);
+                return await aniWordService.GetSeasonEpisodesLinksAsync(seriesName, season);
             }).WithOpenApi();
 
             app.Run();

@@ -1,12 +1,7 @@
 ﻿using System.Net;
 using System.Text.RegularExpressions;
 using System.Text;
-using System.Xml;
 using HtmlAgilityPack;
-using System.Web;
-using AniWorldReminder_API.Models;
-using Telegram.Bot.Types;
-using Microsoft.Extensions.Hosting;
 
 namespace AniWorldReminder_API.Services
 {
@@ -300,13 +295,14 @@ namespace AniWorldReminder_API.Services
             return episodes;
         }
 
-        public async Task<SeasonModel?> GetSeasonEpisodesLinks(string seriesName, SeasonModel season)
+        public async Task<SeasonModel?> GetSeasonEpisodesLinksAsync(string seriesName, SeasonModel season)
         {
-            string host, episodeUrl = "";
+            string host;
             seriesName = seriesName.UrlSanitize();
 
             foreach (EpisodeModel episode in season.Episodes)
             {
+                string episodeUrl;
                 switch (StreamingPortal)
                 {
                     case StreamingPortal.STO:
@@ -319,29 +315,12 @@ namespace AniWorldReminder_API.Services
                         break;
                     default:
                         continue;
-                }                
-
-                Uri uri = new(string.Format(episodeUrl, episode.Season, episode.Episode));
-                string res = await HttpClient.GetStringAsync(uri);
-
-                Dictionary<Language, List<string>> languageRedirectLinks = GetLanguageRedirectLinks(res);
-
-                if (languageRedirectLinks == null)
-                    continue;
-
-                string? browserUrl = null;
-
-                foreach (KeyValuePair<Language, List<string>> kvp in languageRedirectLinks)
-                {
-                    browserUrl = "https://" + host + kvp.Value[0];
-
-                    if (string.IsNullOrEmpty(browserUrl))
-                        continue;
-
-                    //m3u8Url = await GetEpisodeM3U8(browserUrl);
                 }
 
-                episode.DirectViewLink = browserUrl;
+                Uri uri = new(string.Format(episodeUrl, episode.Season, episode.Episode));
+                string html = await HttpClient.GetStringAsync(uri);
+
+                episode.DirectViewLinks = GetLanguageRedirectLinks(html, host);
             }
 
             return season;
@@ -417,10 +396,8 @@ namespace AniWorldReminder_API.Services
             return BaseUrl + node.Attributes["data-src"].Value;
         }
 
-        private static Dictionary<Language, List<string>> GetLanguageRedirectLinks(string html)
+        private static List<DirectViewLinkModel>? GetLanguageRedirectLinks(string html, string host)
         {
-            Dictionary<Language, List<string>> languageRedirectLinks = [];
-
             HtmlDocument document = new();
             document.LoadHtml(html);
 
@@ -431,46 +408,47 @@ namespace AniWorldReminder_API.Services
             if (languageRedirectNodes == null || languageRedirectNodes.Count == 0)
                 return null;
 
-            List<string> redirectLinks;
+            List<DirectViewLinkModel>? directViewLinks = [];
+            string? redirectLink, directLink;
+                       
+            redirectLink = GetLanguageRedirectLink(Language.GerDub);            
 
-
-            redirectLinks = GetLanguageRedirectLinksNodes(Language.GerDub);
-
-            if (redirectLinks.Count > 0)
+            if (!string.IsNullOrEmpty(redirectLink))
             {
-                languageRedirectLinks.Add(Language.GerDub, redirectLinks);
+                directLink = $"https://" + host + redirectLink;
+                directViewLinks.Add(new DirectViewLinkModel() { Language = Language.GerDub, DirectLink = directLink });
             }
 
-            redirectLinks = GetLanguageRedirectLinksNodes(Language.EngDub);
+            redirectLink = GetLanguageRedirectLink(Language.EngDub);
 
-            if (redirectLinks.Count > 0)
+            if (!string.IsNullOrEmpty(redirectLink))
             {
-                languageRedirectLinks.Add(Language.EngDub, redirectLinks);
+                directLink = $"https://" + host + redirectLink;
+                directViewLinks.Add(new DirectViewLinkModel() { Language = Language.EngDub, DirectLink = directLink });
             }
 
-            redirectLinks = GetLanguageRedirectLinksNodes(Language.EngSub);
+            redirectLink = GetLanguageRedirectLink(Language.EngSub);
 
-            if (redirectLinks.Count > 0)
+            if (!string.IsNullOrEmpty(redirectLink))
             {
-                languageRedirectLinks.Add(Language.EngSub, redirectLinks);
+                directLink = $"https://" + host + redirectLink;
+                directViewLinks.Add(new DirectViewLinkModel() { Language = Language.EngSub, DirectLink = directLink });
             }
 
-            redirectLinks = GetLanguageRedirectLinksNodes(Language.GerSub);
+            redirectLink = GetLanguageRedirectLink(Language.GerSub);
 
-            if (redirectLinks.Count > 0)
+            if (!string.IsNullOrEmpty(redirectLink))
             {
-                languageRedirectLinks.Add(Language.GerSub, redirectLinks);
+                directLink = $"https://" + host + redirectLink;
+                directViewLinks.Add(new DirectViewLinkModel() { Language = Language.GerSub, DirectLink = directLink });
             }
 
-            return languageRedirectLinks;
+            return directViewLinks;
 
-
-            List<string> GetLanguageRedirectLinksNodes(Language language)
+            string? GetLanguageRedirectLink(Language language)
             {
                 List<HtmlNode> redirectNodes = languageRedirectNodes.Where(_ => _.ParentNode.ParentNode.ParentNode.Attributes["data-lang-key"].Value == language.ToVOELanguageKey())
                     .ToList();
-
-                List<string> filteredRedirectLinks = [];
 
                 foreach (HtmlNode node in redirectNodes)
                 {
@@ -481,10 +459,10 @@ namespace AniWorldReminder_API.Services
                    !node.ParentNode.ParentNode.ParentNode.Attributes.Contains("data-link-target"))
                         continue;
 
-                    filteredRedirectLinks.Add(node.ParentNode.ParentNode.ParentNode.Attributes["data-link-target"].Value);
+                    return node.ParentNode.ParentNode.ParentNode.Attributes["data-link-target"].Value;
                 }
 
-                return filteredRedirectLinks;
+                return null;
             }
         }
 
