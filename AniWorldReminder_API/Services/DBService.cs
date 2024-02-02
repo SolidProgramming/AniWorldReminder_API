@@ -1,4 +1,5 @@
 ﻿using AniWorldReminder_API.Enums;
+using AniWorldReminder_API.Models;
 using Dapper;
 using MySql.Data.MySqlClient;
 
@@ -383,6 +384,33 @@ namespace AniWorldReminder_API.Services
             DynamicParameters parameters = new(dictionary);
 
             await connection.ExecuteAsync(query, parameters);
+        }
+        public async Task<IEnumerable<EpisodeDownloadModel>?> GetDownloadEpisodes(string username)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "SELECT download.*, series.Name, streamingportals.* FROM download " +
+                           "JOIN series ON download.SeriesId = series.id " +
+                           "JOIN streamingportals ON series.StreamingPortalId = streamingportals.id " +
+                           "JOIN users " +
+                           "WHERE users.Username = @Username";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@Username", username }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            return await connection.QueryAsync<DownloadModel, StreamingPortalModel, EpisodeDownloadModel>
+               (query, (download, streamingportal) =>
+               {
+                   return new EpisodeDownloadModel()
+                   {
+                       Download = download,
+                       StreamingPortal = streamingportal
+                   };
+               }, parameters);
         }
     }
 }

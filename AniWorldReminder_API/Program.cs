@@ -338,6 +338,11 @@ namespace AniWorldReminder_API
                 return null;
             }).WithOpenApi();
 
+            app.MapGet("/getDownloads", [Authorize] async (string username) =>
+            {
+                return await DBService.GetDownloadEpisodes(username);
+            }).WithOpenApi();
+
             app.Run();
         }
     }

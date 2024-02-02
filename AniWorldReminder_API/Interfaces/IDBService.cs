@@ -17,5 +17,6 @@
         Task<List<UsersSeriesModel>?> GetUsersSeriesAsync(string username);
         Task<UserWebsiteSettings?> GetUserWebsiteSettings(string username);
         Task UpdateUserWebsiteSettings(UserWebsiteSettings userWebsiteSettings);
+        Task<IEnumerable<EpisodeDownloadModel>?> GetDownloadEpisodes(string username);
     }
 }
