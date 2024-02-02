@@ -4,7 +4,7 @@ using System.Web;
 namespace AniWorldReminder_API.Misc
 {
     public static class Extensions
-    {       
+    {
         public static string StripHtmlTags(this string text)
         {
             return Regex.Replace(text, "<.*?>", string.Empty); //|&.*?;
@@ -35,7 +35,7 @@ namespace AniWorldReminder_API.Misc
                .Replace("ä", "ae")
                .Replace("ö", "oe")
                .Replace("ü", "ue");
-        }        
+        }
         public static bool HasItems<T>(this IEnumerable<T> source) => source != null && source.Any();
         public static async Task<(bool success, string? ipv4)> GetIPv4(this HttpClient httpClient)
         {
@@ -60,6 +60,14 @@ namespace AniWorldReminder_API.Misc
             }
 
             return null;
+        }
+
+        public static string? GetClaimUsername(this HttpContext httpContext)
+        {
+            return httpContext.User.Claims
+                          .Where(_ => _.Type == "Username")
+                              .Select(_ => _.Value)
+                                  .SingleOrDefault();
         }
     }
 }

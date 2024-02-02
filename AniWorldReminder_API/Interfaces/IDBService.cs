@@ -11,12 +11,13 @@
         Task<UserModel?> GetAuthUserAsync(string username);
         Task<SeriesModel?> GetSeriesAsync(string seriesName);
         Task InsertSeries(string seriesName, IStreamingPortalService streamingPortalService);
-        Task<UsersSeriesModel?> GetUsersSeriesAsync(string telegramChatId, string seriesName);
+        Task<UsersSeriesModel?> GetUsersSeriesAsync(string username, string seriesName);
         Task InsertUsersSeriesAsync(UsersSeriesModel usersSeries);
         Task DeleteUsersSeriesAsync(UsersSeriesModel usersSeries);
         Task<List<UsersSeriesModel>?> GetUsersSeriesAsync(string username);
         Task<UserWebsiteSettings?> GetUserWebsiteSettings(string username);
         Task UpdateUserWebsiteSettings(UserWebsiteSettings userWebsiteSettings);
+        Task CreateUserWebsiteSettings(int userId);
         Task<IEnumerable<EpisodeDownloadModel>?> GetDownloadEpisodes(string username);
     }
 }

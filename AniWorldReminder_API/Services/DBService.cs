@@ -385,6 +385,21 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
+        public async Task CreateUserWebsiteSettings(int userId)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "INSERT INTO users_settings (UserId) VALUES (@UserId)";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@UserId", userId }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            await connection.ExecuteAsync(query, parameters);
+        }
         public async Task<IEnumerable<EpisodeDownloadModel>?> GetDownloadEpisodes(string username)
         {
             using MySqlConnection connection = new(DBConnectionString);

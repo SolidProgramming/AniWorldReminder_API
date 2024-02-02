@@ -44,7 +44,7 @@ namespace AniWorldReminder_API.Services
             SigningCredentials? credentials = new(securityKey, SecurityAlgorithms.HmacSha256);
 
             Claim[]? claims = [
-                new Claim(JwtRegisteredClaimNames.Sub, user.Username)
+                new Claim("Username", user.Username)
             ];
 
             JwtSecurityToken? token = new(jwtSettings.Issuer, jwtSettings.Issuer, claims, expires: DateTime.Now.AddDays(1), signingCredentials: credentials);

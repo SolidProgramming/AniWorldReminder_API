@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace AniWorldReminder_API
 {
@@ -39,6 +40,7 @@ namespace AniWorldReminder_API
                         ValidAudience = jwtSettings.Issuer,
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.Key))
                     };
+                    options.SaveToken = true;
                 });
 
             builder.Services.AddAuthorization();
@@ -215,20 +217,30 @@ namespace AniWorldReminder_API
                 return Results.Ok(response);
             }).WithOpenApi();
 
-            app.MapGet("/getUserSeries", [Authorize] async (string username, string seriesName) =>
+            app.MapGet("/getUserSeries", [Authorize] async (HttpContext httpContext, string seriesName) =>
             {
+                string? username = httpContext.GetClaimUsername();
+
+                if (string.IsNullOrEmpty(username))
+                    return Results.Unauthorized();
+
                 UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(username, seriesName);
 
-                if(usersSeries is null || usersSeries.Series is null)
-                    return default;
+                if (usersSeries is null || usersSeries.Series is null)
+                    return Results.Ok(default);
 
                 usersSeries.Series.LanguageFlag = usersSeries.LanguageFlag;
 
-                return JsonConvert.SerializeObject(usersSeries?.Series);
+                return Results.Ok(usersSeries?.Series);
             }).WithOpenApi();
 
-            app.MapPost("/addReminder", [Authorize] async (AddReminderRequestModel addReminderRequest) =>
+            app.MapPost("/addReminder", [Authorize] async (HttpContext httpContext, AddReminderRequestModel addReminderRequest) =>
             {
+                string? username = httpContext.GetClaimUsername();
+
+                if (string.IsNullOrEmpty(username))
+                    return Results.Unauthorized();
+
                 SeriesModel? series = await DBService.GetSeriesAsync(addReminderRequest.SeriesName);
 
                 if (series is null)
@@ -248,11 +260,11 @@ namespace AniWorldReminder_API
                     }
                 }
 
-                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(addReminderRequest.Username, addReminderRequest.SeriesName);
+                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(username, addReminderRequest.SeriesName);
 
                 if (usersSeries is null)
                 {
-                    UserModel? user = await DBService.GetUserByUsernameAsync(addReminderRequest.Username);
+                    UserModel? user = await DBService.GetUserByUsernameAsync(username);
 
                     if (user is null)
                         return Results.BadRequest();
@@ -287,8 +299,13 @@ namespace AniWorldReminder_API
                 }
             }).WithOpenApi();
 
-            app.MapGet("/removeReminder", [Authorize] async (string username, string seriesName) =>
+            app.MapGet("/removeReminder", [Authorize] async (HttpContext httpContext, string seriesName) =>
             {
+                string? username = httpContext.GetClaimUsername();
+
+                if (string.IsNullOrEmpty(username))
+                    return Results.Unauthorized();
+
                 UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(username, seriesName);
 
                 if (usersSeries is null)
@@ -302,22 +319,55 @@ namespace AniWorldReminder_API
                 return Results.Ok();
             }).WithOpenApi();
 
-            app.MapGet("/getAllUserSeries", [Authorize] async (string username) =>
+            app.MapGet("/getAllUserSeries", [Authorize] async (HttpContext httpContext) =>
             {
+                string? username = httpContext.GetClaimUsername();
+
+                if (string.IsNullOrEmpty(username))
+                    return Results.Unauthorized();
+
                 List<UsersSeriesModel>? usersSeries = await DBService.GetUsersSeriesAsync(username);
 
-                return JsonConvert.SerializeObject(usersSeries?.Select(_ => _.Series));
+                return Results.Ok(usersSeries?.Select(_ => _.Series));
             }).WithOpenApi();
 
-            app.MapGet("/getUserSettings", [Authorize] async (string username) =>
+            app.MapGet("/getUserSettings", [Authorize] async (HttpContext httpContext) =>
             {
+                string? username = httpContext.GetClaimUsername();
+
+                if (string.IsNullOrEmpty(username))
+                    return Results.Unauthorized();
+
                 UserWebsiteSettings? userWebsiteSettings = await DBService.GetUserWebsiteSettings(username);
 
-                return JsonConvert.SerializeObject(userWebsiteSettings);
+                if (userWebsiteSettings is null)
+                {
+                    UserModel? user = await DBService.GetAuthUserAsync(username);
+
+                    if (user is null)
+                        return Results.Unauthorized();
+
+                    await DBService.CreateUserWebsiteSettings(user.Id);
+                    userWebsiteSettings = await DBService.GetUserWebsiteSettings(username);
+                }                    
+
+                return Results.Ok(userWebsiteSettings);
             }).WithOpenApi();
 
-            app.MapPost("/setUserSettings", [Authorize] async (UserWebsiteSettings userWebsiteSettings) =>
+            app.MapPost("/setUserSettings", [Authorize] async (HttpContext httpContext, UserWebsiteSettings userWebsiteSettings) =>
             {
+                string? username = httpContext.GetClaimUsername();
+
+                if (string.IsNullOrEmpty(username))
+                    return Results.Unauthorized();
+
+                UserModel? user = await DBService.GetAuthUserAsync(username);
+
+                if (user is null)
+                    return Results.Unauthorized();
+
+                userWebsiteSettings.UserId = user.Id;
+
                 await DBService.UpdateUserWebsiteSettings(userWebsiteSettings);
 
                 return Results.Ok();
@@ -337,9 +387,14 @@ namespace AniWorldReminder_API
                 return null;
             }).WithOpenApi();
 
-            app.MapGet("/getDownloads", [Authorize] async (string username) =>
+            app.MapGet("/getDownloads", [Authorize] async (HttpContext httpContext) =>
             {
-                return await DBService.GetDownloadEpisodes(username);
+                string? username = httpContext.GetClaimUsername();
+
+                if (string.IsNullOrEmpty(username))
+                    return Results.Unauthorized();
+
+                return Results.Ok(await DBService.GetDownloadEpisodes(username));
             }).WithOpenApi();
 
             app.Run();
