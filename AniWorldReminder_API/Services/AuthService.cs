@@ -33,7 +33,7 @@ namespace AniWorldReminder_API.Services
             return user;
         }
 
-        public string? GenerateJSONWebToken()
+        public string? GenerateJSONWebToken(UserModel user)
         {
             JwtSettingsModel? jwtSettings = SettingsHelper.ReadSettings<JwtSettingsModel>();
 
@@ -43,7 +43,11 @@ namespace AniWorldReminder_API.Services
             SymmetricSecurityKey? securityKey = new(Encoding.UTF8.GetBytes(jwtSettings.Key));
             SigningCredentials? credentials = new(securityKey, SecurityAlgorithms.HmacSha256);
 
-            JwtSecurityToken? token = new(jwtSettings.Issuer, jwtSettings.Issuer, null, expires: DateTime.Now.AddMinutes(120), signingCredentials: credentials);
+            Claim[]? claims = [
+                new Claim(JwtRegisteredClaimNames.Sub, user.Username)
+            ];
+
+            JwtSecurityToken? token = new(jwtSettings.Issuer, jwtSettings.Issuer, claims, expires: DateTime.Now.AddDays(1), signingCredentials: credentials);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }

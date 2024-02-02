@@ -12,7 +12,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace AniWorldReminder_API
 {
@@ -209,9 +208,9 @@ namespace AniWorldReminder_API
                 if (user == null)
                     return Results.Unauthorized();
 
-                string? jwt = authService.GenerateJSONWebToken();
+                string? jwt = authService.GenerateJSONWebToken(user);
 
-                JwtResponseModel response = new(jwt!);
+                AuthResponseModel response = new(jwt!);
 
                 return Results.Ok(response);
             }).WithOpenApi();

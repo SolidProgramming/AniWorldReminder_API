@@ -23,15 +23,18 @@ namespace AniWorldReminder_API.Misc
         public static string UrlSanitize(this string text)
         {
             return text.Replace(' ', '-')
-                .Replace(":", "")
-                .Replace("~", "")
-                .Replace("'", "")
-                .Replace(",", "")
-                .Replace("’", "")
-                .Replace("+", "")
-                .Replace(".", "")
-                .Replace("!", "")
-                .Replace("--", "-");
+               .Replace(":", "")
+               .Replace("~", "")
+               .Replace("'", "")
+               .Replace(",", "")
+               .Replace("’", "")
+               .Replace("+", "")
+               .Replace(".", "")
+               .Replace("!", "")
+               .Replace("--", "-")
+               .Replace("ä", "ae")
+               .Replace("ö", "oe")
+               .Replace("ü", "ue");
         }        
         public static bool HasItems<T>(this IEnumerable<T> source) => source != null && source.Any();
         public static async Task<(bool success, string? ipv4)> GetIPv4(this HttpClient httpClient)
