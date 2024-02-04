@@ -1,4 +1,5 @@
 ﻿using AniWorldReminder_API.Enums;
+using AniWorldReminder_API.Misc;
 using AniWorldReminder_API.Models;
 using Dapper;
 using MySql.Data.MySqlClient;
@@ -339,6 +340,8 @@ namespace AniWorldReminder_API.Services
                 await connection.QueryAsync<UsersSeriesModel, UserModel, SeriesModel, StreamingPortalModel, UsersSeriesModel>
                 (query, (users_series, users, series, streamingportals) =>
                 {
+                    series.StreamingPortal = streamingportals.Name!.ToStreamingPortal();
+
                     return new UsersSeriesModel()
                     {
                         Id = users_series.Id,

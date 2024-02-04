@@ -54,12 +54,12 @@ namespace AniWorldReminder_API.Misc
 
         public static string? ToVOELanguageKey(this Language language)
         {
-            if (VOELanguageKeyCollection.ContainsKey(language))
+            if (VOELanguageKeyCollection.TryGetValue(language, out string? value))
             {
-                return VOELanguageKeyCollection[language];
+                return value;
             }
 
-            return null;
+            return default;
         }
 
         public static string? GetClaimUsername(this HttpContext httpContext)
@@ -68,6 +68,22 @@ namespace AniWorldReminder_API.Misc
                           .Where(_ => _.Type == "Username")
                               .Select(_ => _.Value)
                                   .SingleOrDefault();
+        }
+
+        private static Dictionary<string, StreamingPortal> StreamingPortalCollection = new()
+        {
+            { "AniWorld", StreamingPortal.AniWorld },
+            { "S.TO", StreamingPortal.STO },
+        };
+
+        public static StreamingPortal ToStreamingPortal(this string streamingPortal)
+        {
+            if (StreamingPortalCollection.TryGetValue(streamingPortal, out StreamingPortal value))
+            {
+                return value;
+            }
+
+            return StreamingPortal.Undefined;
         }
     }
 }
