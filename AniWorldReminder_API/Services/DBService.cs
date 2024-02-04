@@ -329,20 +329,21 @@ namespace AniWorldReminder_API.Services
 
             DynamicParameters parameters = new(dictionary);
 
-            string query = "SELECT users.*, series.*, users_series.* FROM users " +
-                           "JOIN users_series ON users.id = users_series.UserId " +
+            string query = "SELECT * FROM users_series " +
+                           "JOIN users ON users_series.UserId = users.id " +
                            "JOIN series ON users_series.SeriesId = series.id " +
+                           "JOIN streamingportals ON series.StreamingPortalId = streamingportals.id " +
                            "WHERE Username = @Username";
 
             IEnumerable<UsersSeriesModel> users_series =
-                await connection.QueryAsync<UserModel, SeriesModel, UsersSeriesModel, UsersSeriesModel>
-                (query, (users, series, users_series) =>
+                await connection.QueryAsync<UsersSeriesModel, UserModel, SeriesModel, StreamingPortalModel, UsersSeriesModel>
+                (query, (users_series, users, series, streamingportals) =>
                 {
                     return new UsersSeriesModel()
                     {
                         Id = users_series.Id,
-                        Users = users,
-                        Series = series
+                        Series = series,
+                        Users = users
                     };
                 }, parameters);
 
