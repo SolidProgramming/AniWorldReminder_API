@@ -11,13 +11,14 @@
         Task<UserModel?> GetAuthUserAsync(string username);
         Task<SeriesModel?> GetSeriesAsync(string seriesName);
         Task InsertSeries(string seriesName, IStreamingPortalService streamingPortalService);
-        Task<UsersSeriesModel?> GetUsersSeriesAsync(string username, string seriesName);
+        Task<UsersSeriesModel?> GetUsersSeriesAsync(string userId, string seriesName);
         Task InsertUsersSeriesAsync(UsersSeriesModel usersSeries);
         Task DeleteUsersSeriesAsync(UsersSeriesModel usersSeries);
-        Task<List<UsersSeriesModel>?> GetUsersSeriesAsync(string username);
-        Task<UserWebsiteSettings?> GetUserWebsiteSettings(string username);
+        Task<List<UsersSeriesModel>?> GetUsersSeriesAsync(string userId);
+        Task<UserWebsiteSettings?> GetUserWebsiteSettings(string userId);
         Task UpdateUserWebsiteSettings(UserWebsiteSettings userWebsiteSettings);
-        Task CreateUserWebsiteSettings(int userId);
-        Task<IEnumerable<EpisodeDownloadModel>?> GetDownloadEpisodes(string username);
+        Task CreateUserWebsiteSettings(string userId);
+        Task<IEnumerable<EpisodeDownloadModel>?> GetDownloadEpisodes(string userId);
+        Task RemoveFinishedDownload(int userId, int downloadId);
     }
 }

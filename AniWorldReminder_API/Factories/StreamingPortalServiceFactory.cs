@@ -1,6 +1,4 @@
-﻿using AniWorldReminder_API.Services;
-
-namespace AniWorldReminder_API.Factories
+﻿namespace AniWorldReminder_API.Factories
 {
     public class StreamingPortalServiceFactory : IStreamingPortalServiceFactory
     {

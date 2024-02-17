@@ -12,7 +12,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
-using System.IdentityModel.Tokens.Jwt;
 
 namespace AniWorldReminder_API
 {
@@ -219,12 +218,12 @@ namespace AniWorldReminder_API
 
             app.MapGet("/getUserSeries", [Authorize] async (HttpContext httpContext, string seriesName) =>
             {
-                string? username = httpContext.GetClaimUsername();
+                string? userId = httpContext.GetClaim(CustomClaimType.UserId);
 
-                if (string.IsNullOrEmpty(username))
+                if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
 
-                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(username, seriesName);
+                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(userId, seriesName);
 
                 if (usersSeries is null || usersSeries.Series is null)
                     return Results.Ok(default);
@@ -236,9 +235,9 @@ namespace AniWorldReminder_API
 
             app.MapPost("/addReminder", [Authorize] async (HttpContext httpContext, AddReminderRequestModel addReminderRequest) =>
             {
-                string? username = httpContext.GetClaimUsername();
+                string? userId = httpContext.GetClaim(CustomClaimType.UserId);
 
-                if (string.IsNullOrEmpty(username))
+                if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
 
                 SeriesModel? series = await DBService.GetSeriesAsync(addReminderRequest.SeriesName);
@@ -260,11 +259,16 @@ namespace AniWorldReminder_API
                     }
                 }
 
-                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(username, addReminderRequest.SeriesName);
+                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(userId, addReminderRequest.SeriesName);
 
                 if (usersSeries is null)
                 {
-                    UserModel? user = await DBService.GetUserByUsernameAsync(username);
+                    string? username = httpContext.GetClaim(CustomClaimType.Username);
+
+                    if (string.IsNullOrEmpty(username))
+                        return Results.Unauthorized();
+
+                    UserModel? user = await DBService.GetAuthUserAsync(username);
 
                     if (user is null)
                         return Results.BadRequest();
@@ -301,12 +305,12 @@ namespace AniWorldReminder_API
 
             app.MapGet("/removeReminder", [Authorize] async (HttpContext httpContext, string seriesName) =>
             {
-                string? username = httpContext.GetClaimUsername();
+                string? userId = httpContext.GetClaim(CustomClaimType.UserId);
 
-                if (string.IsNullOrEmpty(username))
+                if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
 
-                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(username, seriesName);
+                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(userId, seriesName);
 
                 if (usersSeries is null)
                     return Results.BadRequest();
@@ -321,34 +325,34 @@ namespace AniWorldReminder_API
 
             app.MapGet("/getAllUserSeries", [Authorize] async (HttpContext httpContext) =>
             {
-                string? username = httpContext.GetClaimUsername();
+                string? userId = httpContext.GetClaim(CustomClaimType.UserId);
 
-                if (string.IsNullOrEmpty(username))
+                if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
 
-                List<UsersSeriesModel>? usersSeries = await DBService.GetUsersSeriesAsync(username);
+                List<UsersSeriesModel>? usersSeries = await DBService.GetUsersSeriesAsync(userId);
 
                 return Results.Ok(usersSeries?.Select(_ => _.Series));
             }).WithOpenApi();
 
             app.MapGet("/getUserSettings", [Authorize] async (HttpContext httpContext) =>
             {
-                string? username = httpContext.GetClaimUsername();
+                string? userId = httpContext.GetClaim(CustomClaimType.UserId);
 
-                if (string.IsNullOrEmpty(username))
+                if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
 
-                UserWebsiteSettings? userWebsiteSettings = await DBService.GetUserWebsiteSettings(username);
+                UserWebsiteSettings? userWebsiteSettings = await DBService.GetUserWebsiteSettings(userId);
 
                 if (userWebsiteSettings is null)
                 {
-                    UserModel? user = await DBService.GetAuthUserAsync(username);
+                    UserModel? user = await DBService.GetAuthUserAsync(userId);
 
                     if (user is null)
                         return Results.Unauthorized();
 
-                    await DBService.CreateUserWebsiteSettings(user.Id);
-                    userWebsiteSettings = await DBService.GetUserWebsiteSettings(username);
+                    await DBService.CreateUserWebsiteSettings(user.Id.ToString());
+                    userWebsiteSettings = await DBService.GetUserWebsiteSettings(userId);
                 }                    
 
                 return Results.Ok(userWebsiteSettings);
@@ -356,7 +360,7 @@ namespace AniWorldReminder_API
 
             app.MapPost("/setUserSettings", [Authorize] async (HttpContext httpContext, UserWebsiteSettings userWebsiteSettings) =>
             {
-                string? username = httpContext.GetClaimUsername();
+                string? username = httpContext.GetClaim(CustomClaimType.Username);
 
                 if (string.IsNullOrEmpty(username))
                     return Results.Unauthorized();
@@ -389,7 +393,7 @@ namespace AniWorldReminder_API
 
             app.MapGet("/getDownloads", [Authorize] async (HttpContext httpContext) =>
             {
-                string? username = httpContext.GetClaimUsername();
+                string? username = httpContext.GetClaim(CustomClaimType.UserId);
 
                 if (string.IsNullOrEmpty(username))
                     return Results.Unauthorized();

@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using AniWorldReminder_API.Enums;
+using System.Text.RegularExpressions;
 using System.Web;
 
 namespace AniWorldReminder_API.Misc
@@ -52,6 +53,12 @@ namespace AniWorldReminder_API.Misc
             { Language.EngSub, "4"},
         };
 
+        private static Dictionary<CustomClaimType, string> CustomClaimTypeCollection = new()
+        {
+            { CustomClaimType.UserId, "UserId" },
+            { CustomClaimType.Username, "Username" }
+        };
+
         public static string? ToVOELanguageKey(this Language language)
         {
             if (VOELanguageKeyCollection.TryGetValue(language, out string? value))
@@ -62,10 +69,20 @@ namespace AniWorldReminder_API.Misc
             return default;
         }
 
-        public static string? GetClaimUsername(this HttpContext httpContext)
+        public static string? ToCustomClaimTypeValue(this CustomClaimType customClaimType)
+        {
+            if (CustomClaimTypeCollection.TryGetValue(customClaimType, out string? value))
+            {
+                return value;
+            }
+
+            return default;
+        }
+
+        public static string? GetClaim(this HttpContext httpContext, CustomClaimType claimType)
         {
             return httpContext.User.Claims
-                          .Where(_ => _.Type == "Username")
+                          .Where(_ => _.Type == claimType.ToCustomClaimTypeValue())
                               .Select(_ => _.Value)
                                   .SingleOrDefault();
         }

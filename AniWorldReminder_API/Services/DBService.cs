@@ -1,7 +1,4 @@
-﻿using AniWorldReminder_API.Enums;
-using AniWorldReminder_API.Misc;
-using AniWorldReminder_API.Models;
-using Dapper;
+﻿using Dapper;
 using MySql.Data.MySqlClient;
 
 namespace AniWorldReminder_API.Services
@@ -147,7 +144,7 @@ namespace AniWorldReminder_API.Services
 
             DynamicParameters parameters = new(dictionary);
 
-            string query = "SELECT * FROM users WHERE Username = @Username";
+            string query = "SELECT * FROM users WHERE users.Username = @Username";
 
             return await connection.QuerySingleOrDefaultAsync<UserModel>(query, parameters);
         }
@@ -252,13 +249,13 @@ namespace AniWorldReminder_API.Services
                 await connection.ExecuteAsync(query, parameters);
             }
         }
-        public async Task<UsersSeriesModel?> GetUsersSeriesAsync(string username, string seriesName)
+        public async Task<UsersSeriesModel?> GetUsersSeriesAsync(string userId, string seriesName)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
             Dictionary<string, object> dictionary = new()
             {
-                { "@Username", username },
+                { "@UserId", userId },
                 { "@seriesName", seriesName }
             };
 
@@ -267,7 +264,7 @@ namespace AniWorldReminder_API.Services
             string query = "SELECT users.*, series.*, users_series.* FROM users " +
                            "JOIN users_series ON users.id = users_series.UserId " +
                            "JOIN series ON users_series.SeriesId = series.id " +
-                           "WHERE Username = @Username AND series.Name = @seriesName";
+                           "WHERE UserId = @UserId AND series.Name = @seriesName";
 
             IEnumerable<UsersSeriesModel> users_series =
                 await connection.QueryAsync<UserModel, SeriesModel, UsersSeriesModel, UsersSeriesModel>
@@ -319,13 +316,13 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
-        public async Task<List<UsersSeriesModel>?> GetUsersSeriesAsync(string username)
+        public async Task<List<UsersSeriesModel>?> GetUsersSeriesAsync(string userId)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
             Dictionary<string, object> dictionary = new()
             {
-                { "@Username", username }
+                { "@UserId", userId }
             };
 
             DynamicParameters parameters = new(dictionary);
@@ -334,7 +331,7 @@ namespace AniWorldReminder_API.Services
                            "JOIN users ON users_series.UserId = users.id " +
                            "JOIN series ON users_series.SeriesId = series.id " +
                            "JOIN streamingportals ON series.StreamingPortalId = streamingportals.id " +
-                           "WHERE Username = @Username";
+                           "WHERE UserId = @UserId";
 
             IEnumerable<UsersSeriesModel> users_series =
                 await connection.QueryAsync<UsersSeriesModel, UserModel, SeriesModel, StreamingPortalModel, UsersSeriesModel>
@@ -352,20 +349,20 @@ namespace AniWorldReminder_API.Services
 
             return users_series.ToList();
         }
-        public async Task<UserWebsiteSettings?> GetUserWebsiteSettings(string username)
+        public async Task<UserWebsiteSettings?> GetUserWebsiteSettings(string userId)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
             Dictionary<string, object> dictionary = new()
             {
-                { "@Username", username }
+                { "@UserId", userId }
             };
 
             DynamicParameters parameters = new(dictionary);
 
             string query = "SELECT users_settings.* FROM users_settings " +
                 "LEFT JOIN users ON users_settings.UserId = users.id " +
-                "WHERE users.Username = @Username";
+                "WHERE users.id = @UserId";
 
             return await connection.QuerySingleOrDefaultAsync<UserWebsiteSettings>(query, parameters);
         }
@@ -389,7 +386,7 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
-        public async Task CreateUserWebsiteSettings(int userId)
+        public async Task CreateUserWebsiteSettings(string userId)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
@@ -404,7 +401,7 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
-        public async Task<IEnumerable<EpisodeDownloadModel>?> GetDownloadEpisodes(string username)
+        public async Task<IEnumerable<EpisodeDownloadModel>?> GetDownloadEpisodes(string userId)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
@@ -412,11 +409,11 @@ namespace AniWorldReminder_API.Services
                            "JOIN series ON download.SeriesId = series.id " +
                            "JOIN streamingportals ON series.StreamingPortalId = streamingportals.id " +
                            "JOIN users ON download.UsersId = users.id " +
-                           "WHERE users.Username = @Username";
+                           "WHERE users.id = @UserId";
 
             Dictionary<string, object> dictionary = new()
             {
-                { "@Username", username }
+                { "@UserId", userId }
             };
 
             DynamicParameters parameters = new(dictionary);
@@ -430,6 +427,10 @@ namespace AniWorldReminder_API.Services
                        StreamingPortal = streamingportal
                    };
                }, parameters);
+        }
+        public async Task RemoveFinishedDownload(int userId, int downloadId)
+        {
+            
         }
     }
 }
