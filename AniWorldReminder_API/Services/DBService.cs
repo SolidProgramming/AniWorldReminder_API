@@ -405,10 +405,11 @@ namespace AniWorldReminder_API.Services
         {
             using MySqlConnection connection = new(DBConnectionString);
 
-            string query = "SELECT download.*, series.Name, streamingportals.* FROM download " +
+            string query = "SELECT download.*, series.Name, streamingportals.*, users_series.* FROM download " +
                            "JOIN series ON download.SeriesId = series.id " +
                            "JOIN streamingportals ON series.StreamingPortalId = streamingportals.id " +
                            "JOIN users ON download.UsersId = users.id " +
+                           "JOIN users_series ON series.id = users_series.SeriesId " +
                            "WHERE users.id = @UserId";
 
             Dictionary<string, object> dictionary = new()
@@ -418,9 +419,10 @@ namespace AniWorldReminder_API.Services
 
             DynamicParameters parameters = new(dictionary);
 
-            return await connection.QueryAsync<DownloadModel, StreamingPortalModel, EpisodeDownloadModel>
-               (query, (download, streamingportal) =>
+            return await connection.QueryAsync<DownloadModel, StreamingPortalModel, UsersSeriesModel, EpisodeDownloadModel>
+               (query, (download, streamingportal, usersSeries) =>
                {
+                   download.LanguageFlag = usersSeries.LanguageFlag;
                    return new EpisodeDownloadModel()
                    {
                        Download = download,
