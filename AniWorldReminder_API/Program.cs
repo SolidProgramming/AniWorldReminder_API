@@ -388,17 +388,32 @@ namespace AniWorldReminder_API
                     return await aniWordService.GetSeasonEpisodesLinksAsync(seriesName, season);
                 }
 
-                return null;
+                return default;
             }).WithOpenApi();
 
             app.MapGet("/getDownloads", [Authorize] async (HttpContext httpContext) =>
             {
-                string? username = httpContext.GetClaim(CustomClaimType.UserId);
+                string? userId = httpContext.GetClaim(CustomClaimType.UserId);
 
-                if (string.IsNullOrEmpty(username))
+                if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
 
-                return Results.Ok(await DBService.GetDownloadEpisodes(username));
+                IEnumerable<EpisodeDownloadModel>? downloads = await DBService.GetDownloadEpisodes(userId);
+
+                return Results.Ok(downloads);
+            }).WithOpenApi();
+
+            app.MapPost("/removeFinishedDownload", [Authorize] async (HttpContext httpContext, [FromBody] string downloadId) =>
+            {
+                string? userId = httpContext.GetClaim(CustomClaimType.UserId);
+
+                if (string.IsNullOrEmpty(userId))
+                    return Results.Unauthorized();
+                
+                await DBService.RemoveFinishedDownload(userId, downloadId);
+
+                return Results.Ok();
+
             }).WithOpenApi();
 
             app.Run();

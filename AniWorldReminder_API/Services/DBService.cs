@@ -428,9 +428,22 @@ namespace AniWorldReminder_API.Services
                    };
                }, parameters);
         }
-        public async Task RemoveFinishedDownload(int userId, int downloadId)
+        public async Task RemoveFinishedDownload(string userId, string downloadId)
         {
-            
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "DELETE FROM download " +
+                "WHERE download.UsersId = @UsersId AND download.id = @DownloadId";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@UsersId", userId },
+                { "@DownloadId", downloadId }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            await connection.ExecuteAsync(query, parameters);
         }
     }
 }

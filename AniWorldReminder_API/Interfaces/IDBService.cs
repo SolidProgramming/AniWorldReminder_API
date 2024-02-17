@@ -19,6 +19,6 @@
         Task UpdateUserWebsiteSettings(UserWebsiteSettings userWebsiteSettings);
         Task CreateUserWebsiteSettings(string userId);
         Task<IEnumerable<EpisodeDownloadModel>?> GetDownloadEpisodes(string userId);
-        Task RemoveFinishedDownload(int userId, int downloadId);
+        Task RemoveFinishedDownload(string userId, string downloadId);
     }
 }
