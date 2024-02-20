@@ -447,5 +447,29 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
+        public async Task InsertDownloadAsync(string usersId, string seriesId, List<EpisodeModel> episodes)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "INSERT INTO download (SeriesId, UsersId ,Season, Episode, LanguageFlag) VALUES (@SeriesId, @UsersId , @Season, @Episode, @LanguageFlag)";
+
+            Dictionary<string, object> dictionary;
+
+            foreach (EpisodeModel episode in episodes)
+            {
+                dictionary = new()
+                {
+                    { "@SeriesId",  seriesId},
+                    { "@UsersId",  usersId},
+                    { "@Season",  episode.Season},
+                    { "@Episode",  episode.Episode},
+                    { "@LanguageFlag",  episode.Languages}
+                };
+
+                DynamicParameters parameters = new(dictionary);
+
+                await connection.ExecuteAsync(query, parameters);
+            }
+        }
     }
 }

@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 
 namespace AniWorldReminder_API
 {
@@ -413,7 +414,21 @@ namespace AniWorldReminder_API
                 await DBService.RemoveFinishedDownload(userId, downloadId);
 
                 return Results.Ok();
+            }).WithOpenApi();
 
+            app.MapPost("/addDownloads", [Authorize] async (HttpContext httpContext, [FromBody] AddDownloadsRequestModel downloads) =>
+            {
+                string? userId = httpContext.GetClaim(CustomClaimType.UserId);
+
+                if (string.IsNullOrEmpty(userId))
+                    return Results.Unauthorized();
+
+                if (downloads is null || string.IsNullOrEmpty(downloads.SeriesId) || downloads.Episodes is null)
+                    return Results.BadRequest();
+
+                await DBService.InsertDownloadAsync(userId, downloads.SeriesId, downloads.Episodes);
+
+                return Results.Ok();
             }).WithOpenApi();
 
             app.Run();
