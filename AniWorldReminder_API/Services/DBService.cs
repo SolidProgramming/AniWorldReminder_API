@@ -148,24 +148,24 @@ namespace AniWorldReminder_API.Services
 
             return await connection.QuerySingleOrDefaultAsync<UserModel>(query, parameters);
         }
-        public async Task<SeriesModel?> GetSeriesAsync(string seriesName)
+        public async Task<SeriesModel?> GetSeriesAsync(string seriesPath)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
             Dictionary<string, object> dictionary = new()
             {
-                { "@Name", seriesName }
+                { "@SeriesPath", seriesPath }
             };
 
             DynamicParameters parameters = new(dictionary);
 
-            string query = "SELECT * FROM series WHERE series.Name = @Name";
+            string query = "SELECT * FROM series WHERE series.Path = @SeriesPath";
 
             return await connection.QueryFirstOrDefaultAsync<SeriesModel>(query, parameters);
         }
-        public async Task InsertSeries(string seriesName, IStreamingPortalService streamingPortalService)
+        public async Task InsertSeries(string SeriesPath, IStreamingPortalService streamingPortalService)
         {
-            SeriesInfoModel? seriesInfo = await streamingPortalService.GetSeriesInfoAsync(seriesName);
+            SeriesInfoModel? seriesInfo = await streamingPortalService.GetSeriesInfoAsync(SeriesPath);
 
             if (seriesInfo is null)
                 return;
@@ -206,7 +206,7 @@ namespace AniWorldReminder_API.Services
             if (streamingPortalId < 1)
                 return -1;
 
-            string query = "INSERT INTO series (StreamingPortalId, Name, SeasonCount, EpisodeCount, CoverArtUrl) VALUES (@StreamingPortalId, @Name, @SeasonCount, @EpisodeCount, @CoverArtUrl); " +
+            string query = "INSERT INTO series (StreamingPortalId, Name, SeasonCount, EpisodeCount, Path, CoverArtUrl) VALUES (@StreamingPortalId, @Name, @SeasonCount, @EpisodeCount, @SeriesPath, @CoverArtUrl); " +
                 "select LAST_INSERT_ID()";
 
             Dictionary<string, object> dictionary = new()
@@ -215,6 +215,7 @@ namespace AniWorldReminder_API.Services
                 { "@Name", seriesInfo.Name },
                 { "@SeasonCount", seriesInfo.SeasonCount },
                 { "@EpisodeCount", seriesInfo.Seasons.Last().EpisodeCount },
+                { "@SeriesPath", seriesInfo.Path },
                 { "@CoverArtUrl", seriesInfo.CoverArtUrl },
             };
 
@@ -249,14 +250,14 @@ namespace AniWorldReminder_API.Services
                 await connection.ExecuteAsync(query, parameters);
             }
         }
-        public async Task<UsersSeriesModel?> GetUsersSeriesAsync(string userId, string seriesName)
+        public async Task<UsersSeriesModel?> GetUsersSeriesAsync(string userId, string seriesPath)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
             Dictionary<string, object> dictionary = new()
             {
                 { "@UserId", userId },
-                { "@seriesName", seriesName }
+                { "@SeriesPath", $"/{seriesPath.TrimStart('/')}" }
             };
 
             DynamicParameters parameters = new(dictionary);
@@ -264,7 +265,7 @@ namespace AniWorldReminder_API.Services
             string query = "SELECT users.*, series.*, users_series.* FROM users " +
                            "JOIN users_series ON users.id = users_series.UserId " +
                            "JOIN series ON users_series.SeriesId = series.id " +
-                           "WHERE UserId = @UserId AND series.Name = @seriesName";
+                           "WHERE UserId = @UserId AND series.Path = @SeriesPath";
 
             IEnumerable<UsersSeriesModel> users_series =
                 await connection.QueryAsync<UserModel, SeriesModel, UsersSeriesModel, UsersSeriesModel>

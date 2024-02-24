@@ -2,7 +2,7 @@
 {
     public class AddReminderRequestModel
     {
-        public string SeriesName { get; set; }
+        public string? SeriesPath { get; set; }
         public StreamingPortal StreamingPortal { get; set; }
         public Language Language { get; set; }
     }

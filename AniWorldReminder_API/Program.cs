@@ -137,14 +137,14 @@ namespace AniWorldReminder_API
                 return JsonConvert.SerializeObject(allSearchResults);
             }).WithOpenApi();
 
-            app.MapGet("/getSeriesInfo", [Authorize] async (string seriesName) =>
+            app.MapGet("/getSeriesInfo", [Authorize] async (string seriesPath) =>
             {
-                SeriesInfoModel? seriesInfo = await aniWordService.GetSeriesInfoAsync(seriesName);
+                SeriesInfoModel? seriesInfo = await aniWordService.GetSeriesInfoAsync(seriesPath);
 
                 if (seriesInfo is not null)
                     return JsonConvert.SerializeObject(seriesInfo);
 
-                seriesInfo = await sTOService.GetSeriesInfoAsync(seriesName);
+                seriesInfo = await sTOService.GetSeriesInfoAsync(seriesPath);
 
                 return JsonConvert.SerializeObject(seriesInfo);
             }).WithOpenApi();
@@ -217,14 +217,14 @@ namespace AniWorldReminder_API
                 return Results.Ok(response);
             }).WithOpenApi();
 
-            app.MapGet("/getUserSeries", [Authorize] async (HttpContext httpContext, string seriesName) =>
+            app.MapGet("/getUserSeries", [Authorize] async (HttpContext httpContext, string seriesPath) =>
             {
                 string? userId = httpContext.GetClaim(CustomClaimType.UserId);
 
                 if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
 
-                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(userId, seriesName);
+                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(userId, seriesPath);
 
                 if (usersSeries is null || usersSeries.Series is null)
                     return Results.Ok(default);
@@ -241,7 +241,7 @@ namespace AniWorldReminder_API
                 if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
 
-                SeriesModel? series = await DBService.GetSeriesAsync(addReminderRequest.SeriesName);
+                SeriesModel? series = await DBService.GetSeriesAsync(addReminderRequest.SeriesPath);
 
                 if (series is null)
                 {
@@ -250,17 +250,17 @@ namespace AniWorldReminder_API
                         case StreamingPortal.Undefined:
                             return Results.BadRequest();
                         case StreamingPortal.AniWorld:
-                            await DBService.InsertSeries(addReminderRequest.SeriesName, aniWordService);
+                            await DBService.InsertSeries(addReminderRequest.SeriesPath, aniWordService);
                             break;
                         case StreamingPortal.STO:
-                            await DBService.InsertSeries(addReminderRequest.SeriesName, sTOService);
+                            await DBService.InsertSeries(addReminderRequest.SeriesPath, sTOService);
                             break;
                         default:
                             return Results.BadRequest();
                     }
                 }
 
-                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(userId, addReminderRequest.SeriesName);
+                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(userId, addReminderRequest.SeriesPath);
 
                 if (usersSeries is null)
                 {
@@ -274,7 +274,7 @@ namespace AniWorldReminder_API
                     if (user is null)
                         return Results.BadRequest();
 
-                    series = await DBService.GetSeriesAsync(addReminderRequest.SeriesName);
+                    series = await DBService.GetSeriesAsync(addReminderRequest.SeriesPath);
 
                     usersSeries = new()
                     {
@@ -304,14 +304,14 @@ namespace AniWorldReminder_API
                 }
             }).WithOpenApi();
 
-            app.MapGet("/removeReminder", [Authorize] async (HttpContext httpContext, string seriesName) =>
+            app.MapGet("/removeReminder", [Authorize] async (HttpContext httpContext, string seriesPath) =>
             {
                 string? userId = httpContext.GetClaim(CustomClaimType.UserId);
 
                 if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
 
-                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(userId, seriesName);
+                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(userId, seriesPath);
 
                 if (usersSeries is null)
                     return Results.BadRequest();
@@ -378,15 +378,15 @@ namespace AniWorldReminder_API
                 return Results.Ok();
             }).WithOpenApi();
 
-            app.MapGet("/getSeasonEpisodesLinks", [Authorize] async (string seriesName, string streamingPortal, [FromBody] SeasonModel season) =>
+            app.MapGet("/getSeasonEpisodesLinks", [Authorize] async (string seriesPath, string streamingPortal, [FromBody] SeasonModel season) =>
             {
                 if (streamingPortal.ToLower() == StreamingPortal.STO.ToString().ToLower())
                 {
-                    return await sTOService.GetSeasonEpisodesLinksAsync(seriesName, season);
+                    return await sTOService.GetSeasonEpisodesLinksAsync(seriesPath, season);
                 }
                 else if (streamingPortal.ToLower() == StreamingPortal.AniWorld.ToString().ToLower())
                 {
-                    return await aniWordService.GetSeasonEpisodesLinksAsync(seriesName, season);
+                    return await aniWordService.GetSeasonEpisodesLinksAsync(seriesPath, season);
                 }
 
                 return default;

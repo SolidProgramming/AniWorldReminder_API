@@ -9,9 +9,9 @@
         Task UpdateVerificationStatusAsync(string telegramChatId, VerificationStatus verificationStatus);
         Task SetVerifyStatusAsync(UserModel user);
         Task<UserModel?> GetAuthUserAsync(string username);
-        Task<SeriesModel?> GetSeriesAsync(string seriesName);
-        Task InsertSeries(string seriesName, IStreamingPortalService streamingPortalService);
-        Task<UsersSeriesModel?> GetUsersSeriesAsync(string userId, string seriesName);
+        Task<SeriesModel?> GetSeriesAsync(string seriesPath);
+        Task InsertSeries(string SeriesPath, IStreamingPortalService streamingPortalService);
+        Task<UsersSeriesModel?> GetUsersSeriesAsync(string userId, string seriesPath);
         Task InsertUsersSeriesAsync(UsersSeriesModel usersSeries);
         Task DeleteUsersSeriesAsync(UsersSeriesModel usersSeries);
         Task<List<UsersSeriesModel>?> GetUsersSeriesAsync(string userId);

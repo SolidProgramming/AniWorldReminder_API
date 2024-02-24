@@ -96,6 +96,7 @@ namespace AniWorldReminder_API.Services
                     result.Title = result.Title.HtmlDecode();
                     result.Description = result.Description.HtmlDecode();
                     result.StreamingPortal = StreamingPortal;
+                    result.Path = result.Link.Replace("/anime/stream", "").Replace("/serie/stream", "");
 
                     html = await HttpClient.GetStringAsync($"{BaseUrl}{result.Link}");
                     doc.LoadHtml(html);
@@ -111,19 +112,17 @@ namespace AniWorldReminder_API.Services
             }
         }
 
-        public async Task<SeriesInfoModel?> GetSeriesInfoAsync(string seriesName)
+        public async Task<SeriesInfoModel?> GetSeriesInfoAsync(string seriesPath)
         {
-            string searchSeriesName = seriesName.UrlSanitize();
-
             string seriesUrl;
 
             switch (StreamingPortal)
             {
                 case StreamingPortal.STO:
-                    seriesUrl = $"{BaseUrl}/serie/stream/{searchSeriesName}";
+                    seriesUrl = $"{BaseUrl}/serie/stream/{seriesPath}";
                     break;
                 case StreamingPortal.AniWorld:
-                    seriesUrl = $"{BaseUrl}/anime/stream/{searchSeriesName}";
+                    seriesUrl = $"{BaseUrl}/anime/stream/{seriesPath}";
                     break;
                 default:
                     return null;
@@ -149,21 +148,26 @@ namespace AniWorldReminder_API.Services
             if (!int.TryParse(seriesInfoNode[0].InnerText, out int seasonCount))
                 return null;
 
+            HtmlNode? titleNode = new HtmlNodeQueryBuilder()
+                .Query(doc)
+                    .GetNodesByQuery("//div[@class='series-title']/h1/span")
+                        .FirstOrDefault();                        
 
             SeriesInfoModel seriesInfo = new()
             {
-                Name = seriesName,
+                Name = titleNode?.InnerHtml,
                 DirectLink = seriesUrl,
                 Description = GetDescription(doc)?.HtmlDecode(),
                 SeasonCount = seasonCount,
                 CoverArtUrl = GetCoverArtUrl(doc),
                 StreamingPortal = StreamingPortal,
-                Seasons = await GetSeasonsAsync(searchSeriesName, seasonCount)
+                Seasons = await GetSeasonsAsync(seriesPath, seasonCount),
+                Path = $"/{seriesPath.TrimStart('/')}"
             };
 
             foreach (SeasonModel season in seriesInfo.Seasons)
             {
-                List<EpisodeModel>? episodes = await GetSeasonEpisodesAsync(searchSeriesName, season.Id);
+                List<EpisodeModel>? episodes = await GetSeasonEpisodesAsync(seriesPath, season.Id);
 
                 if (episodes is null || episodes.Count == 0)
                     continue;
@@ -174,7 +178,7 @@ namespace AniWorldReminder_API.Services
             return seriesInfo;
         }
 
-        private async Task<List<SeasonModel>> GetSeasonsAsync(string searchSeriesName, int seasonCount)
+        private async Task<List<SeasonModel>> GetSeasonsAsync(string seriesPath, int seasonCount)
         {
             List<SeasonModel> seasons = [];
 
@@ -185,10 +189,10 @@ namespace AniWorldReminder_API.Services
                 switch (StreamingPortal)
                 {
                     case StreamingPortal.STO:
-                        seasonUrl = $"{BaseUrl}/serie/stream/{searchSeriesName}/staffel-{i + 1}";
+                        seasonUrl = $"{BaseUrl}/serie/stream/{seriesPath}/staffel-{i + 1}";
                         break;
                     case StreamingPortal.AniWorld:
-                        seasonUrl = $"{BaseUrl}/anime/stream/{searchSeriesName}/staffel-{i + 1}";
+                        seasonUrl = $"{BaseUrl}/anime/stream/{seriesPath}/staffel-{i + 1}";
                         break;
                     default:
                         return null;
@@ -229,18 +233,18 @@ namespace AniWorldReminder_API.Services
             return seasons;
         }
 
-        private async Task<List<EpisodeModel>?> GetSeasonEpisodesAsync(string seriesName, int season)
+        private async Task<List<EpisodeModel>?> GetSeasonEpisodesAsync(string seriesPath, int season)
         {
             string seasonUrl, host;
 
             switch (StreamingPortal)
             {
                 case StreamingPortal.STO:
-                    seasonUrl = $"{BaseUrl}/serie/stream/{seriesName}/staffel-{season}";
+                    seasonUrl = $"{BaseUrl}/serie/stream/{seriesPath}/staffel-{season}";
                     host = "s.to";
                     break;
                 case StreamingPortal.AniWorld:
-                    seasonUrl = $"{BaseUrl}/anime/stream/{seriesName}/staffel-{season}";
+                    seasonUrl = $"{BaseUrl}/anime/stream/{seriesPath}/staffel-{season}";
                     host = "aniworld.to";
                     break;
                 default:
@@ -296,10 +300,9 @@ namespace AniWorldReminder_API.Services
             return episodes;
         }
 
-        public async Task<SeasonModel?> GetSeasonEpisodesLinksAsync(string seriesName, SeasonModel season)
+        public async Task<SeasonModel?> GetSeasonEpisodesLinksAsync(string seriesPath, SeasonModel season)
         {
             string host;
-            seriesName = seriesName.UrlSanitize();
 
             foreach (EpisodeModel episode in season.Episodes)
             {
@@ -307,11 +310,11 @@ namespace AniWorldReminder_API.Services
                 switch (StreamingPortal)
                 {
                     case StreamingPortal.STO:
-                        episodeUrl = $"{BaseUrl}/serie/stream/{seriesName}" + "/staffel-{0}/episode-{1}";
+                        episodeUrl = $"{BaseUrl}/serie/stream/{seriesPath}" + "/staffel-{0}/episode-{1}";
                         host = "s.to";
                         break;
                     case StreamingPortal.AniWorld:
-                        episodeUrl = $"{BaseUrl}/anime/stream/{seriesName}" + "/staffel-{0}/episode-{1}";
+                        episodeUrl = $"{BaseUrl}/anime/stream/{seriesPath}" + "/staffel-{0}/episode-{1}";
                         host = "aniworld.to";
                         break;
                     default:
