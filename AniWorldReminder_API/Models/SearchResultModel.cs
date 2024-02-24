@@ -16,6 +16,9 @@ namespace AniWorldReminder_API.Models
         public string? Path { get; set; }
 
         public string? CoverArtUrl { get; set; }
+
+        public string? CoverArtBase64 { get; set; }
+
         public StreamingPortal StreamingPortal { get; set; }
     }
 }

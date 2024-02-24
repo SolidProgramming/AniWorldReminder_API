@@ -2,10 +2,11 @@
 using System.Text.RegularExpressions;
 using System.Text;
 using HtmlAgilityPack;
+using Microsoft.IdentityModel.Tokens;
 
 namespace AniWorldReminder_API.Services
 {
-    public class AniWorldSTOService(ILogger<AniWorldSTOService> logger, Interfaces.IHttpClientFactory httpClientFactory, string baseUrl, string name, StreamingPortal streamingPortal) 
+    public class AniWorldSTOService(ILogger<AniWorldSTOService> logger, Interfaces.IHttpClientFactory httpClientFactory, string baseUrl, string name, StreamingPortal streamingPortal)
         : IStreamingPortalService
     {
         private HttpClient? HttpClient;
@@ -97,11 +98,12 @@ namespace AniWorldReminder_API.Services
                     result.Description = result.Description.HtmlDecode();
                     result.StreamingPortal = StreamingPortal;
                     result.Path = result.Link.Replace("/anime/stream", "").Replace("/serie/stream", "");
-
+                   
                     html = await HttpClient.GetStringAsync($"{BaseUrl}{result.Link}");
                     doc.LoadHtml(html);
 
                     result.CoverArtUrl = GetCoverArtUrl(doc)!;
+                    result.CoverArtBase64 = await GetCoverArtBase64(result.CoverArtUrl);
                 }
 
                 return (true, filteredSearchResults);
@@ -151,7 +153,7 @@ namespace AniWorldReminder_API.Services
             HtmlNode? titleNode = new HtmlNodeQueryBuilder()
                 .Query(doc)
                     .GetNodesByQuery("//div[@class='series-title']/h1/span")
-                        .FirstOrDefault();                        
+                        .FirstOrDefault();
 
             SeriesInfoModel seriesInfo = new()
             {
@@ -164,6 +166,8 @@ namespace AniWorldReminder_API.Services
                 Seasons = await GetSeasonsAsync(seriesPath, seasonCount),
                 Path = $"/{seriesPath.TrimStart('/')}"
             };
+
+            seriesInfo.CoverArtBase64 = await GetCoverArtBase64(seriesInfo.CoverArtUrl);
 
             foreach (SeasonModel season in seriesInfo.Seasons)
             {
@@ -400,6 +404,20 @@ namespace AniWorldReminder_API.Services
             return BaseUrl + node.Attributes["data-src"].Value;
         }
 
+        private async Task<string?> GetCoverArtBase64(string url)
+        {
+            if (!string.IsNullOrEmpty(url))
+            {
+                byte[]? imageBytes = await HttpClient.GetByteArrayAsync(url);
+
+                if (imageBytes.Length > 0)
+                {
+                    return "data:image/png;base64, " + Convert.ToBase64String(imageBytes);
+                }
+            }
+            return default;
+        }
+
         private static List<DirectViewLinkModel>? GetLanguageRedirectLinks(string html, string host)
         {
             HtmlDocument document = new();
@@ -414,8 +432,8 @@ namespace AniWorldReminder_API.Services
 
             List<DirectViewLinkModel>? directViewLinks = [];
             string? redirectLink, directLink;
-                       
-            redirectLink = GetLanguageRedirectLink(Language.GerDub);            
+
+            redirectLink = GetLanguageRedirectLink(Language.GerDub);
 
             if (!string.IsNullOrEmpty(redirectLink))
             {
