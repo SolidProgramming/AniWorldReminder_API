@@ -19,7 +19,7 @@
         Task UpdateUserWebsiteSettings(UserWebsiteSettings userWebsiteSettings);
         Task CreateUserWebsiteSettings(string userId);
         Task<IEnumerable<EpisodeDownloadModel>?> GetDownloadEpisodes(string userId);
-        Task RemoveFinishedDownload(string userId, string downloadId);
+        Task RemoveFinishedDownload(string userId, EpisodeDownloadModel episode);
         Task InsertDownloadAsync(string usersId, string seriesId, List<EpisodeModel> episodes);
     }
 }

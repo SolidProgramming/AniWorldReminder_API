@@ -432,17 +432,19 @@ namespace AniWorldReminder_API.Services
                    };
                }, parameters);
         }
-        public async Task RemoveFinishedDownload(string userId, string downloadId)
+        public async Task RemoveFinishedDownload(string userId, EpisodeDownloadModel episode)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
             string query = "DELETE FROM download " +
-                "WHERE download.UsersId = @UsersId AND download.id = @DownloadId";
+                "WHERE download.UsersId = @UsersId AND download.SeriesId = @SeriesId AND download.Season = @Season AND download.Episode = @Episode";
 
             Dictionary<string, object> dictionary = new()
             {
                 { "@UsersId", userId },
-                { "@DownloadId", downloadId }
+                { "@SeriesId", episode.Download.SeriesId },
+                { "@Season", episode.Download.Season },
+                { "@Episode", episode.Download.Episode }
             };
 
             DynamicParameters parameters = new(dictionary);

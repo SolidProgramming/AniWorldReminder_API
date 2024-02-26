@@ -404,14 +404,14 @@ namespace AniWorldReminder_API
                 return Results.Ok(downloads);
             }).WithOpenApi();
 
-            app.MapPost("/removeFinishedDownload", [Authorize] async (HttpContext httpContext, [FromBody] string downloadId) =>
+            app.MapPost("/removeFinishedDownload", [Authorize] async (HttpContext httpContext, [FromBody] EpisodeDownloadModel episode) =>
             {
                 string? userId = httpContext.GetClaim(CustomClaimType.UserId);
 
                 if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
                 
-                await DBService.RemoveFinishedDownload(userId, downloadId);
+                await DBService.RemoveFinishedDownload(userId, episode);
 
                 return Results.Ok();
             }).WithOpenApi();
