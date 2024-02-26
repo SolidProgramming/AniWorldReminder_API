@@ -407,7 +407,7 @@ namespace AniWorldReminder_API.Services
         {
             using MySqlConnection connection = new(DBConnectionString);
 
-            string query = "SELECT download.*, series.Name, streamingportals.*, users_series.* FROM download " +
+            string query = "SELECT download.*, series.*, streamingportals.*, users_series.* FROM download " +
                            "JOIN series ON download.SeriesId = series.id " +
                            "JOIN streamingportals ON series.StreamingPortalId = streamingportals.id " +
                            "JOIN users ON download.UsersId = users.id " +
