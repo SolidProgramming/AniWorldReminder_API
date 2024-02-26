@@ -412,7 +412,7 @@ namespace AniWorldReminder_API.Services
                            "JOIN streamingportals ON series.StreamingPortalId = streamingportals.id " +
                            "JOIN users ON download.UsersId = users.id " +
                            "JOIN users_series ON series.id = users_series.SeriesId " +
-                           "WHERE users.id = @UserId AND users_series.UserId = @UserId";
+                           "WHERE users.id = @UserId AND users_series.UserId = @UserId ORDER BY download.id";
 
             Dictionary<string, object> dictionary = new()
             {

@@ -1,5 +1,4 @@
-﻿using AniWorldReminder_API.Enums;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 using System.Web;
 
 namespace AniWorldReminder_API.Misc
