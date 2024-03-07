@@ -391,26 +391,26 @@ namespace AniWorldReminder_API
                 return default;
             }).WithOpenApi();
 
-            app.MapGet("/getDownloads", [Authorize] async (HttpContext httpContext) =>
+            app.MapGet("/getDownloads", [AllowAnonymous] async (HttpContext httpContext) =>
             {
-                string? userId = httpContext.GetClaim(CustomClaimType.UserId);
+                string? apiKey = httpContext.Request.Headers["X-API-KEY"];
 
-                if (string.IsNullOrEmpty(userId))
+                if (string.IsNullOrEmpty(apiKey))
                     return Results.Unauthorized();
 
-                IEnumerable<EpisodeDownloadModel>? downloads = await DBService.GetDownloadEpisodes(userId);
+                IEnumerable<EpisodeDownloadModel>? downloads = await DBService.GetDownloadEpisodes(apiKey);
 
                 return Results.Ok(downloads);
             }).WithOpenApi();
 
-            app.MapPost("/removeFinishedDownload", [Authorize] async (HttpContext httpContext, [FromBody] EpisodeDownloadModel episode) =>
+            app.MapPost("/removeFinishedDownload", async (HttpContext httpContext, [FromBody] EpisodeDownloadModel episode) =>
             {
-                string? userId = httpContext.GetClaim(CustomClaimType.UserId);
+                string? apiKey = httpContext.Request.Headers["X-API-KEY"];
 
-                if (string.IsNullOrEmpty(userId))
+                if (string.IsNullOrEmpty(apiKey))
                     return Results.Unauthorized();
                 
-                await DBService.RemoveFinishedDownload(userId, episode);
+                await DBService.RemoveFinishedDownload(apiKey, episode);
 
                 return Results.Ok();
             }).WithOpenApi();
@@ -428,6 +428,18 @@ namespace AniWorldReminder_API
                 await DBService.InsertDownloadAsync(userId, downloads.SeriesId, downloads.Episodes);
 
                 return Results.Ok();
+            }).WithOpenApi();
+
+            app.MapGet("/getAPIKey", [Authorize] async (HttpContext httpContext) =>
+            {
+                string? userId = httpContext.GetClaim(CustomClaimType.UserId);
+
+                if (string.IsNullOrEmpty(userId))
+                    return Results.Unauthorized();
+
+                string? apiKey = await authService.GetAPIKey(userId);
+
+                return Results.Ok(apiKey);
             }).WithOpenApi();
 
             app.Run();

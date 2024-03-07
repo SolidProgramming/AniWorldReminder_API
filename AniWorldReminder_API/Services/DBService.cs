@@ -1,5 +1,7 @@
-﻿using Dapper;
+﻿using AniWorldReminder_API.Models;
+using Dapper;
 using MySql.Data.MySqlClient;
+using Telegram.Bot.Types;
 
 namespace AniWorldReminder_API.Services
 {
@@ -403,7 +405,7 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
-        public async Task<IEnumerable<EpisodeDownloadModel>?> GetDownloadEpisodes(string userId)
+        public async Task<IEnumerable<EpisodeDownloadModel>?> GetDownloadEpisodes(string apiKey)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
@@ -412,11 +414,13 @@ namespace AniWorldReminder_API.Services
                            "JOIN streamingportals ON series.StreamingPortalId = streamingportals.id " +
                            "JOIN users ON download.UsersId = users.id " +
                            "JOIN users_series ON series.id = users_series.SeriesId " +
-                           "WHERE users.id = @UserId AND users_series.UserId = @UserId ORDER BY download.id";
+                           "WHERE users.APIKey = @APIKey " +
+                           "AND users.id = users_series.UserId " +
+                           "ORDER BY download.id";
 
             Dictionary<string, object> dictionary = new()
             {
-                { "@UserId", userId }
+                { "@APIKey", apiKey }
             };
 
             DynamicParameters parameters = new(dictionary);
@@ -432,8 +436,13 @@ namespace AniWorldReminder_API.Services
                    };
                }, parameters);
         }
-        public async Task RemoveFinishedDownload(string userId, EpisodeDownloadModel episode)
+        public async Task RemoveFinishedDownload(string apiKey, EpisodeDownloadModel episode)
         {
+            string? userId = await GetUserIdByAPIKey(apiKey);
+
+            if (string.IsNullOrEmpty(userId))
+                return;
+
             using MySqlConnection connection = new(DBConnectionString);
 
             string query = "DELETE FROM download " +
@@ -474,6 +483,54 @@ namespace AniWorldReminder_API.Services
 
                 await connection.ExecuteAsync(query, parameters);
             }
+        }
+        public async Task<string?> GetUserAPIKey(string userId)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "SELECT users.APIKey FROM users WHERE users.id = @UserId";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@UserId", userId }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            return await connection.QuerySingleOrDefaultAsync<string?>(query, parameters);
+        }
+        public async Task UpdateUserAPIKey(string userId, string apiKey)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "UPDATE users " +
+                           "SET users.APIKey = @APIKey " +
+                           "WHERE users.id = @UserId";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@APIKey", apiKey },
+                { "@UserId", userId }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            await connection.ExecuteAsync(query, parameters);
+        }
+        public async Task<string?> GetUserIdByAPIKey(string apiKey)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "SELECT users.id FROM users WHERE users.APIKey = @APIKey";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@APIKey", apiKey }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            return await connection.QuerySingleOrDefaultAsync<string?>(query, parameters);
         }
     }
 }

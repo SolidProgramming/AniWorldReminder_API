@@ -52,5 +52,23 @@ namespace AniWorldReminder_API.Services
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+        public async Task<string?> GetAPIKey(string userId)
+        {
+            string? apiKey = await DBService.GetUserAPIKey(userId);
+
+            if (!string.IsNullOrEmpty(apiKey))
+                return apiKey;
+
+            return await GenerateAPIKey(userId);
+        }
+        public async Task<string?> GenerateAPIKey(string userId)
+        {
+            string apiKey = Guid.NewGuid().ToString();
+
+            await DBService.UpdateUserAPIKey(userId, apiKey);
+
+            return apiKey;
+        }
+
     }
 }
