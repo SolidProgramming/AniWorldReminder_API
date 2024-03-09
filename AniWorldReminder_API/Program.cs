@@ -398,7 +398,7 @@ namespace AniWorldReminder_API
                 if (string.IsNullOrEmpty(apiKey))
                     return Results.Unauthorized();
 
-                IEnumerable<EpisodeDownloadModel>? downloads = await DBService.GetDownloadEpisodes(apiKey);
+                IEnumerable<EpisodeDownloadModel>? downloads = await DBService.GetDownloads(apiKey);
 
                 return Results.Ok(downloads);
             }).WithOpenApi();
@@ -440,6 +440,18 @@ namespace AniWorldReminder_API
                 string? apiKey = await authService.GetAPIKey(userId);
 
                 return Results.Ok(apiKey);
+            }).WithOpenApi();
+
+            app.MapGet("/getDownloadsCount", [AllowAnonymous] async (HttpContext httpContext) =>
+            {
+                string? apiKey = httpContext.Request.Headers["X-API-KEY"];
+
+                if (string.IsNullOrEmpty(apiKey))
+                    return Results.Unauthorized();
+
+                int downloadCount = await DBService.GetDownloadsCount(apiKey);
+
+                return Results.Ok(downloadCount);
             }).WithOpenApi();
 
             app.Run();

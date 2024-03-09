@@ -1,7 +1,5 @@
-﻿using AniWorldReminder_API.Models;
-using Dapper;
+﻿using Dapper;
 using MySql.Data.MySqlClient;
-using Telegram.Bot.Types;
 
 namespace AniWorldReminder_API.Services
 {
@@ -405,7 +403,7 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
-        public async Task<IEnumerable<EpisodeDownloadModel>?> GetDownloadEpisodes(string apiKey)
+        public async Task<IEnumerable<EpisodeDownloadModel>?> GetDownloads(string apiKey)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
@@ -544,6 +542,23 @@ namespace AniWorldReminder_API.Services
             DynamicParameters parameters = new(dictionary);
 
             return await connection.QuerySingleOrDefaultAsync<string?>(query, parameters);
+        }
+        public async Task<int> GetDownloadsCount(string apiKey)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "SELECT COUNT(1) FROM download " +
+                "JOIN users ON download.UsersId = users.id " +
+                "WHERE users.APIKey = @APIKey";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@APIKey", apiKey }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            return await connection.ExecuteScalarAsync<int>(query, dictionary);
         }
     }
 }

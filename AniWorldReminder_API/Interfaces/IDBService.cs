@@ -18,11 +18,12 @@
         Task<UserWebsiteSettings?> GetUserWebsiteSettings(string userId);
         Task UpdateUserWebsiteSettings(UserWebsiteSettings userWebsiteSettings);
         Task CreateUserWebsiteSettings(string userId);
-        Task<IEnumerable<EpisodeDownloadModel>?> GetDownloadEpisodes(string apiKey);
+        Task<IEnumerable<EpisodeDownloadModel>?> GetDownloads(string apiKey);
         Task RemoveFinishedDownload(string apiKey, EpisodeDownloadModel episode);
         Task<int> InsertDownloadAsync(string usersId, string seriesId, List<EpisodeModel> episodes);
         Task<string?> GetUserAPIKey(string userId);
         Task UpdateUserAPIKey(string userId, string apiKey);
         Task<string?> GetUserIdByAPIKey(string apiKey);
+        Task<int> GetDownloadsCount(string apiKey);
     }
 }
