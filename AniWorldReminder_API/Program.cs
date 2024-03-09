@@ -425,9 +425,9 @@ namespace AniWorldReminder_API
                 if (downloads is null || string.IsNullOrEmpty(downloads.SeriesId) || downloads.Episodes is null)
                     return Results.BadRequest();
 
-                await DBService.InsertDownloadAsync(userId, downloads.SeriesId, downloads.Episodes);
+                int episdesAdded = await DBService.InsertDownloadAsync(userId, downloads.SeriesId, downloads.Episodes);
 
-                return Results.Ok();
+                return Results.Ok(episdesAdded);
             }).WithOpenApi();
 
             app.MapGet("/getAPIKey", [Authorize] async (HttpContext httpContext) =>

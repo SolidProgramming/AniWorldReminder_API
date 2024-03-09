@@ -460,13 +460,19 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
-        public async Task InsertDownloadAsync(string usersId, string seriesId, List<EpisodeModel> episodes)
+        public async Task<int> InsertDownloadAsync(string usersId, string seriesId, List<EpisodeModel> episodes)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
+            string selectQuery = "SELECT EXISTS(" +
+                   "SELECT * FROM download " +
+                   "WHERE SeriesId = @SeriesId AND UsersId = @UsersId AND Season = @Season AND Episode = @Episode AND LanguageFlag = @LanguageFlag)";
+            
             string query = "INSERT INTO download (SeriesId, UsersId ,Season, Episode, LanguageFlag) VALUES (@SeriesId, @UsersId , @Season, @Episode, @LanguageFlag)";
 
             Dictionary<string, object> dictionary;
+
+            int rowsAdded = 0;
 
             foreach (EpisodeModel episode in episodes)
             {
@@ -479,10 +485,17 @@ namespace AniWorldReminder_API.Services
                     { "@LanguageFlag",  episode.Languages}
                 };
 
+                int rows = await connection.ExecuteScalarAsync<int>(selectQuery, dictionary);
+
+                if (rows > 0)
+                    continue;
+
                 DynamicParameters parameters = new(dictionary);
 
-                await connection.ExecuteAsync(query, parameters);
+                rowsAdded += await connection.ExecuteAsync(query, parameters);
             }
+
+            return rowsAdded;
         }
         public async Task<string?> GetUserAPIKey(string userId)
         {
