@@ -17,7 +17,6 @@ namespace AniWorldReminder_API.Services
 
             Logger.LogInformation($"{DateTime.Now} Auth Service initialized");
         }
-
         public async Task<UserModel?> Authenticate(string username, string password)
         {
             UserModel? user = await DBService.GetAuthUserAsync(username);
@@ -32,7 +31,6 @@ namespace AniWorldReminder_API.Services
 
             return user;
         }
-
         public string? GenerateJSONWebToken(UserModel user)
         {
             JwtSettingsModel? jwtSettings = SettingsHelper.ReadSettings<JwtSettingsModel>();

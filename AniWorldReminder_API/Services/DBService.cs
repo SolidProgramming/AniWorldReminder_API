@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using MySql.Data.MySqlClient;
+using Telegram.Bot.Types;
 
 namespace AniWorldReminder_API.Services
 {
@@ -559,6 +560,21 @@ namespace AniWorldReminder_API.Services
             DynamicParameters parameters = new(dictionary);
 
             return await connection.ExecuteScalarAsync<int>(query, dictionary);
+        }
+        public async Task<UserModel?> GetUserByAPIKey(string apiKey)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "SELECT users.* FROM users WHERE users.APIKey = @APIKey";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@APIKey", apiKey }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            return await connection.QuerySingleOrDefaultAsync<UserModel> (query, parameters);
         }
     }
 }

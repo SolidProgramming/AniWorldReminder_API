@@ -71,8 +71,8 @@ namespace AniWorldReminder_API
 
             IAuthService authService = app.Services.GetRequiredService<IAuthService>();
 
-            IDBService DBService = app.Services.GetRequiredService<IDBService>();
-            if (!await DBService.InitAsync())
+            IDBService dbService = app.Services.GetRequiredService<IDBService>();
+            if (!await dbService.InitAsync())
                 return;
 
             ITelegramBotService? telegramBotService = app.Services.GetRequiredService<ITelegramBotService>();
@@ -169,12 +169,12 @@ namespace AniWorldReminder_API
                         { "Validation", problems.ToArray() }
                     };
 
-                    await DBService.UpdateVerificationStatusAsync(token.TelegramChatId, VerificationStatus.NotVerified);
+                    await dbService.UpdateVerificationStatusAsync(token.TelegramChatId, VerificationStatus.NotVerified);
 
                     return Results.ValidationProblem(problemsList);
                 }
 
-                UserModel? user = await DBService.GetUserByTelegramIdAsync(token.TelegramChatId);
+                UserModel? user = await dbService.GetUserByTelegramIdAsync(token.TelegramChatId);
 
                 if (user is null || string.IsNullOrEmpty(user.TelegramChatId))
                     return Results.NotFound("User not found!");
@@ -185,8 +185,8 @@ namespace AniWorldReminder_API
                 user.Username = verifyRequest.Username;
                 user.Password = SecretHasher.Hash(verifyRequest.Password);
 
-                await DBService.DeleteVerifyTokenAsync(user.TelegramChatId);
-                await DBService.SetVerifyStatusAsync(user);
+                await dbService.DeleteVerifyTokenAsync(user.TelegramChatId);
+                await dbService.SetVerifyStatusAsync(user);
 
                 StringBuilder sb = new();
 
@@ -223,7 +223,7 @@ namespace AniWorldReminder_API
                 if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
 
-                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(userId, seriesPath);
+                UsersSeriesModel? usersSeries = await dbService.GetUsersSeriesAsync(userId, seriesPath);
 
                 if (usersSeries is null || usersSeries.Series is null)
                     return Results.Ok(default);
@@ -240,7 +240,7 @@ namespace AniWorldReminder_API
                 if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
 
-                SeriesModel? series = await DBService.GetSeriesAsync(addReminderRequest.SeriesPath);
+                SeriesModel? series = await dbService.GetSeriesAsync(addReminderRequest.SeriesPath);
 
                 if (series is null)
                 {
@@ -249,17 +249,17 @@ namespace AniWorldReminder_API
                         case StreamingPortal.Undefined:
                             return Results.BadRequest();
                         case StreamingPortal.AniWorld:
-                            await DBService.InsertSeries(addReminderRequest.SeriesPath, aniWordService);
+                            await dbService.InsertSeries(addReminderRequest.SeriesPath, aniWordService);
                             break;
                         case StreamingPortal.STO:
-                            await DBService.InsertSeries(addReminderRequest.SeriesPath, sTOService);
+                            await dbService.InsertSeries(addReminderRequest.SeriesPath, sTOService);
                             break;
                         default:
                             return Results.BadRequest();
                     }
                 }
 
-                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(userId, addReminderRequest.SeriesPath);
+                UsersSeriesModel? usersSeries = await dbService.GetUsersSeriesAsync(userId, addReminderRequest.SeriesPath);
 
                 if (usersSeries is null)
                 {
@@ -268,12 +268,12 @@ namespace AniWorldReminder_API
                     if (string.IsNullOrEmpty(username))
                         return Results.Unauthorized();
 
-                    UserModel? user = await DBService.GetAuthUserAsync(username);
+                    UserModel? user = await dbService.GetAuthUserAsync(username);
 
                     if (user is null)
                         return Results.BadRequest();
 
-                    series = await DBService.GetSeriesAsync(addReminderRequest.SeriesPath);
+                    series = await dbService.GetSeriesAsync(addReminderRequest.SeriesPath);
 
                     usersSeries = new()
                     {
@@ -282,7 +282,7 @@ namespace AniWorldReminder_API
                         LanguageFlag = addReminderRequest.Language
                     };
 
-                    await DBService.InsertUsersSeriesAsync(usersSeries);
+                    await dbService.InsertUsersSeriesAsync(usersSeries);
 
                     string messageText = $"{Emoji.Checkmark} Dein Reminder für <b>{series.Name}</b> wurde hinzugefügt.";
 
@@ -310,12 +310,12 @@ namespace AniWorldReminder_API
                 if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
 
-                UsersSeriesModel? usersSeries = await DBService.GetUsersSeriesAsync(userId, seriesPath);
+                UsersSeriesModel? usersSeries = await dbService.GetUsersSeriesAsync(userId, seriesPath);
 
                 if (usersSeries is null)
                     return Results.BadRequest();
 
-                await DBService.DeleteUsersSeriesAsync(usersSeries);
+                await dbService.DeleteUsersSeriesAsync(usersSeries);
 
                 string messageText = $"{Emoji.Checkmark} Reminder für <b>{usersSeries.Series.Name}</b> wurde gelöscht.";
                 await telegramBotService.SendMessageAsync(long.Parse(usersSeries.Users.TelegramChatId), messageText);
@@ -330,7 +330,7 @@ namespace AniWorldReminder_API
                 if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
 
-                List<UsersSeriesModel>? usersSeries = await DBService.GetUsersSeriesAsync(userId);
+                List<UsersSeriesModel>? usersSeries = await dbService.GetUsersSeriesAsync(userId);
 
                 return Results.Ok(usersSeries?.Select(_ => _.Series));
             }).WithOpenApi();
@@ -342,17 +342,17 @@ namespace AniWorldReminder_API
                 if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
 
-                UserWebsiteSettings? userWebsiteSettings = await DBService.GetUserWebsiteSettings(userId);
+                UserWebsiteSettings? userWebsiteSettings = await dbService.GetUserWebsiteSettings(userId);
 
                 if (userWebsiteSettings is null)
                 {
-                    UserModel? user = await DBService.GetAuthUserAsync(userId);
+                    UserModel? user = await dbService.GetAuthUserAsync(userId);
 
                     if (user is null)
                         return Results.Unauthorized();
 
-                    await DBService.CreateUserWebsiteSettings(user.Id.ToString());
-                    userWebsiteSettings = await DBService.GetUserWebsiteSettings(userId);
+                    await dbService.CreateUserWebsiteSettings(user.Id.ToString());
+                    userWebsiteSettings = await dbService.GetUserWebsiteSettings(userId);
                 }                    
 
                 return Results.Ok(userWebsiteSettings);
@@ -365,14 +365,14 @@ namespace AniWorldReminder_API
                 if (string.IsNullOrEmpty(username))
                     return Results.Unauthorized();
 
-                UserModel? user = await DBService.GetAuthUserAsync(username);
+                UserModel? user = await dbService.GetAuthUserAsync(username);
 
                 if (user is null)
                     return Results.Unauthorized();
 
                 userWebsiteSettings.UserId = user.Id;
 
-                await DBService.UpdateUserWebsiteSettings(userWebsiteSettings);
+                await dbService.UpdateUserWebsiteSettings(userWebsiteSettings);
 
                 return Results.Ok();
             }).WithOpenApi();
@@ -398,7 +398,7 @@ namespace AniWorldReminder_API
                 if (string.IsNullOrEmpty(apiKey))
                     return Results.Unauthorized();
 
-                IEnumerable<EpisodeDownloadModel>? downloads = await DBService.GetDownloads(apiKey);
+                IEnumerable<EpisodeDownloadModel>? downloads = await dbService.GetDownloads(apiKey);
 
                 return Results.Ok(downloads);
             }).WithOpenApi();
@@ -410,7 +410,7 @@ namespace AniWorldReminder_API
                 if (string.IsNullOrEmpty(apiKey))
                     return Results.Unauthorized();
                 
-                await DBService.RemoveFinishedDownload(apiKey, episode);
+                await dbService.RemoveFinishedDownload(apiKey, episode);
 
                 return Results.Ok();
             }).WithOpenApi();
@@ -425,7 +425,7 @@ namespace AniWorldReminder_API
                 if (downloads is null || string.IsNullOrEmpty(downloads.SeriesId) || downloads.Episodes is null)
                     return Results.BadRequest();
 
-                int episdesAdded = await DBService.InsertDownloadAsync(userId, downloads.SeriesId, downloads.Episodes);
+                int episdesAdded = await dbService.InsertDownloadAsync(userId, downloads.SeriesId, downloads.Episodes);
 
                 return Results.Ok(episdesAdded);
             }).WithOpenApi();
@@ -449,9 +449,27 @@ namespace AniWorldReminder_API
                 if (string.IsNullOrEmpty(apiKey))
                     return Results.Unauthorized();
 
-                int downloadCount = await DBService.GetDownloadsCount(apiKey);
+                int downloadCount = await dbService.GetDownloadsCount(apiKey);
 
                 return Results.Ok(downloadCount);
+            }).WithOpenApi();
+
+            app.MapGet("/captchaNotify", [AllowAnonymous] async (HttpContext httpContext, string streamingPortal) =>
+            {
+                string? apiKey = httpContext.Request.Headers["X-API-KEY"];
+
+                if (string.IsNullOrEmpty(apiKey))
+                    return Results.Unauthorized();
+
+                UserModel? user = await dbService.GetUserByAPIKey(apiKey);
+
+                if (user is null || string.IsNullOrEmpty(user.TelegramChatId))
+                    return Results.NotFound();
+                                
+                string messageText = $"{Emoji.ExclamationmarkRed}{Emoji.ExclamationmarkRed} Der AutoDLClient ist auf ein Captcha gelaufen{Emoji.ExclamationmarkRed}{Emoji.ExclamationmarkRed}\nDas Captcha muss gelöst werden damit der Downloader weiter machen kann{Emoji.ExclamationmarkRed}\nNavigiere auf dem PC mit dem Browser auf {streamingPortal} um das Captcha zu lösen.";
+                await telegramBotService.SendMessageAsync(long.Parse(user.TelegramChatId), messageText);
+
+                return Results.Ok();
             }).WithOpenApi();
 
             app.Run();

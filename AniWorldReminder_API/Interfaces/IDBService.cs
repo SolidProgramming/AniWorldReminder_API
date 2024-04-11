@@ -25,5 +25,6 @@
         Task UpdateUserAPIKey(string userId, string apiKey);
         Task<string?> GetUserIdByAPIKey(string apiKey);
         Task<int> GetDownloadsCount(string apiKey);
+        Task<UserModel?> GetUserByAPIKey(string apiKey);
     }
 }
