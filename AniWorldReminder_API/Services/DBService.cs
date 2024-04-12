@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using MySql.Data.MySqlClient;
+using System.Collections.Generic;
 using Telegram.Bot.Types;
 
 namespace AniWorldReminder_API.Services
@@ -575,6 +576,75 @@ namespace AniWorldReminder_API.Services
             DynamicParameters parameters = new(dictionary);
 
             return await connection.QuerySingleOrDefaultAsync<UserModel> (query, parameters);
+        }
+        public async Task SetDownloaderPreferences(string apiKey, DownloaderPreferencesModel downloaderPreferences)
+        {
+            UserModel? user = await GetUserByAPIKey(apiKey);
+
+            if (user is null)
+                return;
+
+            using MySqlConnection connection = new(DBConnectionString);
+                        
+            string selectQuery = "SELECT EXISTS(SELECT * FROM users_downloader_preferences WHERE users_downloader_preferences.UserId = @UserId)";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@UserId", user.Id }
+            };
+
+            int rows = await connection.ExecuteScalarAsync<int>(selectQuery, dictionary);
+
+            if (rows > 0)
+            {
+                await UpdateDownloaderPreferences(user, downloaderPreferences);
+            }
+            else
+            {
+                await InsertDownloaderPreferences(user, downloaderPreferences);
+            }
+        }
+        private async Task UpdateDownloaderPreferences(UserModel user, DownloaderPreferencesModel downloaderPreferences)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@UserId", user.Id },
+                { "@Interval", downloaderPreferences.Interval },
+                { "@AutoStart", downloaderPreferences.AutoStart },
+                { "@TelegramCaptchaNotification", downloaderPreferences.TelegramCaptchaNotification }
+            };
+
+            string query = "UPDATE users_downloader_preferences " +
+                "SET users_downloader_preferences.Interval = @Interval, " +
+                "users_downloader_preferences.AutoStart = @AutoStart, " +
+                "users_downloader_preferences.TelegramCaptchaNotification = @TelegramCaptchaNotification " +
+                "WHERE users_downloader_preferences.UserId = @UserId";
+
+            DynamicParameters parameters = new(dictionary);
+
+            await connection.ExecuteAsync(query, parameters);
+        }
+        private async Task InsertDownloaderPreferences(UserModel user, DownloaderPreferencesModel downloaderPreferences)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@UserId", user.Id },
+                { "@Interval", downloaderPreferences.Interval },
+                { "@AutoStart", downloaderPreferences.AutoStart },
+                { "@TelegramCaptchaNotification", downloaderPreferences.TelegramCaptchaNotification }
+            };
+
+            string query = "INSERT INTO users_downloader_preferences " +
+               "(UserId, Interval, AutoStart, TelegramCaptchaNotification) " +
+               "VALUES (@UserId, @Interval, @AutoStart, @TelegramCaptchaNotification)";
+
+            DynamicParameters parameters = new(dictionary);
+
+            await connection.ExecuteAsync(query, parameters);
         }
     }
 }

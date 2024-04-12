@@ -26,5 +26,6 @@
         Task<string?> GetUserIdByAPIKey(string apiKey);
         Task<int> GetDownloadsCount(string apiKey);
         Task<UserModel?> GetUserByAPIKey(string apiKey);
+        Task SetDownloaderPreferences(string apiKey, DownloaderPreferencesModel downloaderPreferences);
     }
 }

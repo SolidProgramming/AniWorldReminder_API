@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 
 namespace AniWorldReminder_API
 {
@@ -52,7 +53,6 @@ namespace AniWorldReminder_API
                 builder.Services.AddEndpointsApiExplorer();
                 builder.Services.AddSwaggerGen();
             }
-
             builder.Services.AddSingleton<IAuthService, AuthService>();
             builder.Services.AddSingleton<IDBService, DBService>();
             builder.Services.AddSingleton<Interfaces.IHttpClientFactory, HttpClientFactory>();
@@ -353,7 +353,7 @@ namespace AniWorldReminder_API
 
                     await dbService.CreateUserWebsiteSettings(user.Id.ToString());
                     userWebsiteSettings = await dbService.GetUserWebsiteSettings(userId);
-                }                    
+                }
 
                 return Results.Ok(userWebsiteSettings);
             }).WithOpenApi();
@@ -409,7 +409,7 @@ namespace AniWorldReminder_API
 
                 if (string.IsNullOrEmpty(apiKey))
                     return Results.Unauthorized();
-                
+
                 await dbService.RemoveFinishedDownload(apiKey, episode);
 
                 return Results.Ok();
@@ -465,11 +465,24 @@ namespace AniWorldReminder_API
 
                 if (user is null || string.IsNullOrEmpty(user.TelegramChatId))
                     return Results.NotFound();
-                                
+
                 string messageText = $"{Emoji.ExclamationmarkRed}{Emoji.ExclamationmarkRed} Der AutoDLClient ist auf ein Captcha gelaufen{Emoji.ExclamationmarkRed}{Emoji.ExclamationmarkRed}\nDas Captcha muss gelöst werden damit der Downloader weiter machen kann{Emoji.ExclamationmarkRed}\nNavigiere auf dem PC mit dem Browser auf {streamingPortal} um das Captcha zu lösen.";
                 await telegramBotService.SendMessageAsync(long.Parse(user.TelegramChatId), messageText);
 
                 return Results.Ok();
+            }).WithOpenApi();
+
+            app.MapPost("/setDownloaderPreferences", [AllowAnonymous] async (HttpContext httpContext, [FromBody] DownloaderPreferencesModel downloaderPreferences) =>
+            {
+                string? apiKey = httpContext.Request.Headers["X-API-KEY"];
+
+                if (string.IsNullOrEmpty(apiKey))
+                    return Results.Unauthorized();
+
+                await dbService.SetDownloaderPreferences(apiKey, downloaderPreferences);
+
+                return Results.Ok();
+
             }).WithOpenApi();
 
             app.Run();
