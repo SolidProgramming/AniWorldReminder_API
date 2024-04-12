@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using System.Net.Http;
 
 namespace AniWorldReminder_API
 {
@@ -482,7 +483,18 @@ namespace AniWorldReminder_API
                 await dbService.SetDownloaderPreferences(apiKey, downloaderPreferences);
 
                 return Results.Ok();
+            }).WithOpenApi();
 
+            app.MapGet("/getDownloaderPreferences", [AllowAnonymous] async (HttpContext httpContext) =>
+            {
+                string? apiKey = httpContext.Request.Headers["X-API-KEY"];
+
+                if (string.IsNullOrEmpty(apiKey))
+                    return Results.Unauthorized();
+
+                DownloaderPreferencesModel? downloaderPreferences = await dbService.GetDownloaderPreferences(apiKey);
+
+                return Results.Ok(downloaderPreferences);
             }).WithOpenApi();
 
             app.Run();

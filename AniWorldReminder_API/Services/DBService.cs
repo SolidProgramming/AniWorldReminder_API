@@ -646,5 +646,23 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
+        public async Task<DownloaderPreferencesModel?> GetDownloaderPreferences(string apiKey)
+        {
+            UserModel? user = await GetUserByAPIKey(apiKey);
+
+            if (user is null)
+                return default;
+
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string selectQuery = "SELECT * FROM users_downloader_preferences WHERE users_downloader_preferences.UserId = @UserId";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@UserId", user.Id }
+            };
+
+            return await connection.QuerySingleOrDefaultAsync<DownloaderPreferencesModel>(selectQuery, dictionary);
+        }
     }
 }
