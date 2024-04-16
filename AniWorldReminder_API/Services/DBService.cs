@@ -467,7 +467,7 @@ namespace AniWorldReminder_API.Services
             string selectQuery = "SELECT EXISTS(" +
                    "SELECT * FROM download " +
                    "WHERE SeriesId = @SeriesId AND UsersId = @UsersId AND Season = @Season AND Episode = @Episode AND LanguageFlag = @LanguageFlag)";
-            
+
             string query = "INSERT INTO download (SeriesId, UsersId ,Season, Episode, LanguageFlag) VALUES (@SeriesId, @UsersId , @Season, @Episode, @LanguageFlag)";
 
             Dictionary<string, object> dictionary;
@@ -575,7 +575,7 @@ namespace AniWorldReminder_API.Services
 
             DynamicParameters parameters = new(dictionary);
 
-            return await connection.QuerySingleOrDefaultAsync<UserModel> (query, parameters);
+            return await connection.QuerySingleOrDefaultAsync<UserModel>(query, parameters);
         }
         public async Task SetDownloaderPreferences(string apiKey, DownloaderPreferencesModel downloaderPreferences)
         {
@@ -585,7 +585,7 @@ namespace AniWorldReminder_API.Services
                 return;
 
             using MySqlConnection connection = new(DBConnectionString);
-                        
+
             string selectQuery = "SELECT EXISTS(SELECT * FROM users_downloader_preferences WHERE users_downloader_preferences.UserId = @UserId)";
 
             Dictionary<string, object> dictionary = new()
@@ -613,13 +613,21 @@ namespace AniWorldReminder_API.Services
                 { "@UserId", user.Id },
                 { "@Interval", downloaderPreferences.Interval },
                 { "@AutoStart", downloaderPreferences.AutoStart },
-                { "@TelegramCaptchaNotification", downloaderPreferences.TelegramCaptchaNotification }
+                { "@TelegramCaptchaNotification", downloaderPreferences.TelegramCaptchaNotification },
+                { "@UseProxy", downloaderPreferences.UseProxy },
+                { "@ProxyUri", downloaderPreferences.ProxyUri },
+                { "@ProxyUsername", downloaderPreferences.ProxyUsername },
+                { "@ProxyPassword", downloaderPreferences.ProxyPassword },
             };
 
             string query = "UPDATE users_downloader_preferences " +
                 "SET users_downloader_preferences.Interval = @Interval, " +
                 "users_downloader_preferences.AutoStart = @AutoStart, " +
-                "users_downloader_preferences.TelegramCaptchaNotification = @TelegramCaptchaNotification " +
+                "users_downloader_preferences.TelegramCaptchaNotification = @TelegramCaptchaNotification, " +
+                "users_downloader_preferences.UseProxy = @UseProxy, " +
+                "users_downloader_preferences.ProxyUri = @ProxyUri, " +
+                "users_downloader_preferences.ProxyUsername = @ProxyUsername, " +
+                "users_downloader_preferences.ProxyPassword = @ProxyPassword " +
                 "WHERE users_downloader_preferences.UserId = @UserId";
 
             DynamicParameters parameters = new(dictionary);
@@ -635,12 +643,16 @@ namespace AniWorldReminder_API.Services
                 { "@UserId", user.Id },
                 { "@Interval", downloaderPreferences.Interval },
                 { "@AutoStart", downloaderPreferences.AutoStart },
-                { "@TelegramCaptchaNotification", downloaderPreferences.TelegramCaptchaNotification }
+                { "@TelegramCaptchaNotification", downloaderPreferences.TelegramCaptchaNotification },
+                { "@UseProxy", downloaderPreferences.UseProxy },
+                { "@ProxyUri", downloaderPreferences.ProxyUri },
+                { "@ProxyUsername", downloaderPreferences?.ProxyUsername },
+                { "@ProxyPassword", downloaderPreferences?.ProxyPassword },
             };
 
             string query = "INSERT INTO users_downloader_preferences " +
-               "(UserId, Interval, AutoStart, TelegramCaptchaNotification) " +
-               "VALUES (@UserId, @Interval, @AutoStart, @TelegramCaptchaNotification)";
+               "(UserId, users_downloader_preferences.Interval, AutoStart, TelegramCaptchaNotification, UseProxy, ProxyUri, ProxyUsername, ProxyPassword) " +
+               "VALUES (@UserId, @Interval, @AutoStart, @TelegramCaptchaNotification, @UseProxy, @ProxyUri, @ProxyUsername, @ProxyPassword)";
 
             DynamicParameters parameters = new(dictionary);
 
@@ -662,7 +674,17 @@ namespace AniWorldReminder_API.Services
                 { "@UserId", user.Id }
             };
 
-            return await connection.QuerySingleOrDefaultAsync<DownloaderPreferencesModel>(selectQuery, dictionary);
+            DynamicParameters parameters = new(dictionary);
+
+            DownloaderPreferencesModel? preferences = await connection.QuerySingleAsync<DownloaderPreferencesModel>(selectQuery, parameters);
+
+            if (preferences is null)
+            {
+                preferences = new();
+                await InsertDownloaderPreferences(user, preferences);
+            }
+
+            return preferences;
         }
     }
 }
