@@ -676,7 +676,7 @@ namespace AniWorldReminder_API.Services
 
             DynamicParameters parameters = new(dictionary);
 
-            DownloaderPreferencesModel? preferences = await connection.QuerySingleAsync<DownloaderPreferencesModel>(selectQuery, parameters);
+            DownloaderPreferencesModel? preferences = await connection.QuerySingleOrDefaultAsync<DownloaderPreferencesModel>(selectQuery, parameters);
 
             if (preferences is null)
             {
