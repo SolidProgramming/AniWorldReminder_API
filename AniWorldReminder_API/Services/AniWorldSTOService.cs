@@ -94,7 +94,7 @@ namespace AniWorldReminder_API.Services
                         continue;
 
                     result.Title = result.Title.HtmlDecode();
-                    result.Description = result.Description.HtmlDecode();
+                    result.Description = result.Description.HtmlDecode().HtmlDecode();
                     result.StreamingPortal = StreamingPortal;
                     result.Path = result.Link.Replace("/anime/stream", "").Replace("/serie/stream", "");
                    
@@ -156,9 +156,9 @@ namespace AniWorldReminder_API.Services
 
             SeriesInfoModel seriesInfo = new()
             {
-                Name = titleNode?.InnerHtml,
+                Name = titleNode?.InnerHtml.HtmlDecode().HtmlDecode(),
                 DirectLink = seriesUrl,
-                Description = GetDescription(doc)?.HtmlDecode(),
+                Description = GetDescription(doc),
                 SeasonCount = seasonCount,
                 CoverArtUrl = GetCoverArtUrl(doc),
                 StreamingPortal = StreamingPortal,
@@ -384,10 +384,10 @@ namespace AniWorldReminder_API.Services
 
             if (node.InnerText.EndsWith(showMoreText))
             {
-                return node.InnerText.Remove(node.InnerText.Length - showMoreText.Length);
+                return node.InnerText.Remove(node.InnerText.Length - showMoreText.Length).HtmlDecode().HtmlDecode();
             }
 
-            return node.InnerText;
+            return node.InnerText.HtmlDecode().HtmlDecode();
         }
 
         private string? GetCoverArtUrl(HtmlDocument document)
