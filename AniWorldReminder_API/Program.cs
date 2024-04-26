@@ -62,6 +62,7 @@ namespace AniWorldReminder_API
                 StreamingPortalServiceFactory streamingPortalServiceFactory = new();
                 streamingPortalServiceFactory.AddService(StreamingPortal.AniWorld, _);
                 streamingPortalServiceFactory.AddService(StreamingPortal.STO, _);
+                streamingPortalServiceFactory.AddService(StreamingPortal.MegaKino, _);
 
                 return streamingPortalServiceFactory;
             });
@@ -100,11 +101,15 @@ namespace AniWorldReminder_API
 
             IStreamingPortalService aniWordService = streamingPortalServiceFactory.GetService(StreamingPortal.AniWorld);
             IStreamingPortalService sTOService = streamingPortalServiceFactory.GetService(StreamingPortal.STO);
+            IStreamingPortalService megaKinoService = streamingPortalServiceFactory.GetService(StreamingPortal.MegaKino);
 
             if (!await aniWordService.InitAsync(proxy))
                 return;
 
             if (!await sTOService.InitAsync(proxy))
+                return;
+
+            if (!await megaKinoService.InitAsync(proxy))
                 return;
 
             if (appSettings is not null && appSettings.AddSwagger)
@@ -121,14 +126,19 @@ namespace AniWorldReminder_API
             {
                 List<SearchResultModel> allSearchResults = [];
 
-                (bool _, List<SearchResultModel>? searchResultsAniWorld) = await aniWordService.GetSeriesAsync(seriesName);
-                (bool _, List<SearchResultModel>? searchResultsSTO) = await sTOService.GetSeriesAsync(seriesName);
+                (bool _, List<SearchResultModel>? searchResultsMegaKino) = await megaKinoService.GetMediaAsync(seriesName);
+                (bool _, List<SearchResultModel>? searchResultsAniWorld) = await aniWordService.GetMediaAsync(seriesName);
+                (bool _, List<SearchResultModel>? searchResultsSTO) = await sTOService.GetMediaAsync(seriesName);
+
+                if (searchResultsMegaKino.HasItems())
+                    allSearchResults.AddRange(searchResultsMegaKino);
 
                 if (searchResultsAniWorld.HasItems())
                     allSearchResults.AddRange(searchResultsAniWorld);
 
                 if (searchResultsSTO.HasItems())
                     allSearchResults.AddRange(searchResultsSTO);
+
 
                 allSearchResults = allSearchResults.DistinctBy(_ => _.Title).ToList();
 
@@ -137,12 +147,12 @@ namespace AniWorldReminder_API
 
             app.MapGet("/getSeriesInfo", [Authorize] async (string seriesPath) =>
             {
-                SeriesInfoModel? seriesInfo = await aniWordService.GetSeriesInfoAsync(seriesPath);
+                SeriesInfoModel? seriesInfo = await aniWordService.GetMediaInfoAsync(seriesPath);
 
                 if (seriesInfo is not null)
                     return JsonConvert.SerializeObject(seriesInfo);
 
-                seriesInfo = await sTOService.GetSeriesInfoAsync(seriesPath);
+                seriesInfo = await sTOService.GetMediaInfoAsync(seriesPath);
 
                 return JsonConvert.SerializeObject(seriesInfo);
             }).WithOpenApi();

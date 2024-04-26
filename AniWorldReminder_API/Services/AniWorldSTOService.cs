@@ -39,7 +39,7 @@ namespace AniWorldReminder_API.Services
             return success;
         }
 
-        public async Task<(bool success, List<SearchResultModel>? searchResults)> GetSeriesAsync(string seriesName, bool strictSearch = false)
+        public async Task<(bool success, List<SearchResultModel>? searchResults)> GetMediaAsync(string seriesName, bool strictSearch = false)
         {
             (bool reachable, string? html) = await StreamingPortalHelper.GetHosterReachableAsync(this);
 
@@ -113,7 +113,7 @@ namespace AniWorldReminder_API.Services
             }
         }
 
-        public async Task<SeriesInfoModel?> GetSeriesInfoAsync(string seriesPath)
+        public async Task<SeriesInfoModel?> GetMediaInfoAsync(string seriesPath)
         {
             string seriesUrl;
 
@@ -487,7 +487,7 @@ namespace AniWorldReminder_API.Services
             }
         }
 
-        public HttpClient GetHttpClient()
+        public HttpClient? GetHttpClient()
         {
             return HttpClient;
         }

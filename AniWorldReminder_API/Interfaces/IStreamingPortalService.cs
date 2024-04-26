@@ -8,9 +8,9 @@ namespace AniWorldReminder_API.Interfaces
         string Name { get; init; }
         StreamingPortal StreamingPortal { get; init; }
         Task<bool> InitAsync(WebProxy? proxy = null);
-        Task<(bool success, List<SearchResultModel>? searchResults)> GetSeriesAsync(string seriesName, bool strictSearch = false);
-        Task<SeriesInfoModel?> GetSeriesInfoAsync(string seriesPath);
+        Task<(bool success, List<SearchResultModel>? searchResults)> GetMediaAsync(string seriesName, bool strictSearch = false);
+        Task<SeriesInfoModel?> GetMediaInfoAsync(string seriesPath);
         Task<SeasonModel?> GetSeasonEpisodesLinksAsync(string seriesName, SeasonModel season);
-        HttpClient GetHttpClient();
+        HttpClient? GetHttpClient();
     }
 }

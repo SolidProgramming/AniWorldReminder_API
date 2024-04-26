@@ -5,7 +5,8 @@
         private static readonly Dictionary<string, StreamingPortal> StreamingPortals = new()
         {
             { "AniWorld", StreamingPortal.AniWorld },
-            { "S.TO", StreamingPortal.STO }
+            { "S.TO", StreamingPortal.STO },
+            { "MegaKino.men", StreamingPortal.MegaKino },
         };
 
         public static async Task<(bool reachable, string? html)> GetHosterReachableAsync(IStreamingPortalService streamingPortalService)

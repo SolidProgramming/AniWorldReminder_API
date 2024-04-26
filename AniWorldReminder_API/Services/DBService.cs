@@ -167,7 +167,7 @@ namespace AniWorldReminder_API.Services
         }
         public async Task InsertSeries(string SeriesPath, IStreamingPortalService streamingPortalService)
         {
-            SeriesInfoModel? seriesInfo = await streamingPortalService.GetSeriesInfoAsync(SeriesPath);
+            SeriesInfoModel? seriesInfo = await streamingPortalService.GetMediaInfoAsync(SeriesPath);
 
             if (seriesInfo is null)
                 return;
