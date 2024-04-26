@@ -21,13 +21,24 @@ namespace AniWorldReminder_API.Services
 
             BotClient = new(settings.Token);
 
-            User? bot_me = await BotClient.GetMeAsync();
-
-            if (bot_me is null)
+            try
             {
-                logger.LogError($"{DateTime.Now} | {ErrorMessage.RetrieveBotInfo}");
-                return false;
+                User? bot_me = await BotClient.GetMeAsync();
+
+                if (bot_me is null)
+                {
+                    logger.LogError($"{DateTime.Now} | {ErrorMessage.RetrieveBotInfo}");
+                    return false;
+                }
             }
+            catch (Exception ex)
+            {
+                logger.LogError($"{DateTime.Now} | {ex}");
+                return false;
+
+                throw;
+            }
+
 
             logger.LogInformation($"{DateTime.Now} | Telegram Bot Service initialized");
 
@@ -53,7 +64,7 @@ namespace AniWorldReminder_API.Services
             catch (Exception)
             {
                 return null;
-            }            
+            }
         }
         public async Task<Message?> SendPhotoAsync(long chatId, string photoUrl, string? text = null, ParseMode parseMode = ParseMode.Html, bool silentMessage = false)
         {
@@ -70,7 +81,7 @@ namespace AniWorldReminder_API.Services
             {
                 return await SendMessageAsync(chatId, text, parseMode: parseMode);
             }
-           
-        }       
+
+        }
     }
 }
