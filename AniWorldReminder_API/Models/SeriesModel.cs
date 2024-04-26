@@ -9,5 +9,7 @@
         public string? Path { get; set; }
         public StreamingPortal StreamingPortal { get; set; }
         public Language LanguageFlag { get; set; }
+        public DateTime? Added { get; set; }
+        public DateTime? Updated { get; set; }
     }
 }

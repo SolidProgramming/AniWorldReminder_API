@@ -342,6 +342,7 @@ namespace AniWorldReminder_API.Services
                 (query, (users_series, users, series, streamingportals) =>
                 {
                     series.StreamingPortal = streamingportals.Name!.ToStreamingPortal();
+                    series.Added = users_series.Added;
 
                     return new UsersSeriesModel()
                     {
