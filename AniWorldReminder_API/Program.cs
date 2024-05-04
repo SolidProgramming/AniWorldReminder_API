@@ -122,23 +122,30 @@ namespace AniWorldReminder_API
             app.UseAuthentication();
             app.UseAuthorization();
 
-            app.MapGet("/getSeries", [Authorize] async (string seriesName) =>
+            app.MapGet("/getSeries", [Authorize] async (string seriesName, MediaType mediaType) =>
             {
                 List<SearchResultModel> allSearchResults = [];
 
-                (bool _, List<SearchResultModel>? searchResultsMegaKino) = await megaKinoService.GetMediaAsync(seriesName);
-                (bool _, List<SearchResultModel>? searchResultsAniWorld) = await aniWordService.GetMediaAsync(seriesName);
-                (bool _, List<SearchResultModel>? searchResultsSTO) = await sTOService.GetMediaAsync(seriesName);
+                if (mediaType.HasFlag(MediaType.Films))
+                {
+                    (bool _, List<SearchResultModel>? searchResultsMegaKino) = await megaKinoService.GetMediaAsync(seriesName);
 
-                if (searchResultsMegaKino.HasItems())
-                    allSearchResults.AddRange(searchResultsMegaKino);
+                    if (searchResultsMegaKino.HasItems())
+                        allSearchResults.AddRange(searchResultsMegaKino);
+                }
 
-                if (searchResultsAniWorld.HasItems())
-                    allSearchResults.AddRange(searchResultsAniWorld);
+                if (mediaType.HasFlag(MediaType.Series))
+                {
+                    (bool _, List<SearchResultModel>? searchResultsAniWorld) = await aniWordService.GetMediaAsync(seriesName);
+                    (bool _, List<SearchResultModel>? searchResultsSTO) = await sTOService.GetMediaAsync(seriesName);
 
-                if (searchResultsSTO.HasItems())
-                    allSearchResults.AddRange(searchResultsSTO);
 
+                    if (searchResultsAniWorld.HasItems())
+                        allSearchResults.AddRange(searchResultsAniWorld);
+
+                    if (searchResultsSTO.HasItems())
+                        allSearchResults.AddRange(searchResultsSTO);
+                }
 
                 allSearchResults = allSearchResults.DistinctBy(_ => _.Title).ToList();
 
