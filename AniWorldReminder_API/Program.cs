@@ -152,14 +152,26 @@ namespace AniWorldReminder_API
                 return JsonConvert.SerializeObject(allSearchResults);
             }).WithOpenApi();
 
-            app.MapGet("/getSeriesInfo", [Authorize] async (string seriesPath) =>
+            app.MapGet("/getSeriesInfo", [Authorize] async (string seriesPath, string hoster) =>
             {
-                SeriesInfoModel? seriesInfo = await aniWordService.GetMediaInfoAsync(seriesPath);
+                StreamingPortal streamingPortal = StreamingPortalHelper.GetStreamingPortalByName(hoster);
 
-                if (seriesInfo is not null)
-                    return JsonConvert.SerializeObject(seriesInfo);
+                SeriesInfoModel? seriesInfo = default;
+                
+                switch (streamingPortal)
+                {
+                    case StreamingPortal.AniWorld:
+                    case StreamingPortal.STO:
+                        seriesInfo = await sTOService.GetMediaInfoAsync(seriesPath);
+                        break;
+                    case StreamingPortal.MegaKino:
+                        seriesInfo = await megaKinoService.GetMediaInfoAsync(seriesPath);
+                        break;
 
-                seriesInfo = await sTOService.GetMediaInfoAsync(seriesPath);
+                    case StreamingPortal.Undefined:
+                    default:
+                        break;
+                }
 
                 return JsonConvert.SerializeObject(seriesInfo);
             }).WithOpenApi();

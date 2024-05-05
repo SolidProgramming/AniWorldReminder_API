@@ -70,13 +70,18 @@ namespace AniWorldReminder_API.Services
 
             for (int i = 0; i < mediaSearchResultsNodes.Count - 1; i++)
             {
-                string title = mediaSearchResultsNodes[0].SelectNodes("//h3[@class='poster__title ws-nowrap']")[i].InnerText;
+                HtmlNode? titleNode = mediaSearchResultsNodes[0].SelectNodes("//h3[@class='poster__title ws-nowrap']")[i];
+                string title = titleNode.InnerText;
+
+                HtmlNode? baseNode = mediaSearchResultsNodes[i];
 
                 SearchResultModel searchResult = new()
                 {
-                    Title = title,
+                    Title = title.HtmlDecode(),
                     StreamingPortal = StreamingPortal,
-                    CoverArtUrl = GetCoverArtUrl(doc, i)
+                    CoverArtUrl = GetCoverArtUrl(doc, i),
+                    Link = baseNode.Attributes["href"].Value,
+                    Path = GetLinkPath(baseNode.Attributes["href"].Value)
                 };
 
                 searchResult.CoverArtBase64 = await GetCoverArtBase64(searchResult.CoverArtUrl);
@@ -88,14 +93,43 @@ namespace AniWorldReminder_API.Services
             return (true, searchResults);
         }
 
+        private string GetLinkPath(string href)
+        {
+            return href.Split(new string[] { "https://megakino.men/" }, StringSplitOptions.None)[1].Replace("films", "").Replace("serials", "").Replace(".html", "");
+        }
+
         public async Task<SeasonModel?> GetSeasonEpisodesLinksAsync(string seriesName, SeasonModel season)
         {
             throw new NotImplementedException();
         }
 
-        public Task<SeriesInfoModel?> GetMediaInfoAsync(string seriesPath)
+        public async Task<SeriesInfoModel?> GetMediaInfoAsync(string seriesPath)
         {
-            throw new NotImplementedException();
+            string seriesUrl = $"{BaseUrl}/films/{seriesPath}.html";
+         
+            HttpResponseMessage? resp = await HttpClient.GetAsync(new Uri(seriesUrl));
+
+            if (!resp.IsSuccessStatusCode)
+                return null;
+
+            string content = await resp.Content.ReadAsStringAsync();
+
+            HtmlDocument doc = new();
+            doc.LoadHtml(content);
+                        
+            SeriesInfoModel seriesInfo = new()
+            {
+                Name = seriesPath,
+                DirectLink = seriesUrl,
+                Description = "",
+                CoverArtUrl = GetCoverArtUrl(doc, 0),
+                StreamingPortal = StreamingPortal,
+                Path = $"/{seriesPath.TrimStart('/')}"
+            };
+
+            seriesInfo.CoverArtBase64 = await GetCoverArtBase64(seriesInfo.CoverArtUrl);
+
+            return seriesInfo;
         }
 
         private string? GetCoverArtUrl(HtmlDocument document, int index)
