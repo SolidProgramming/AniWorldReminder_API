@@ -89,7 +89,8 @@ namespace AniWorldReminder_API.Misc
         private static Dictionary<string, StreamingPortal> StreamingPortalCollection = new()
         {
             { "AniWorld", StreamingPortal.AniWorld },
-            { "S.TO", StreamingPortal.STO },
+            { "STO", StreamingPortal.STO },
+            { "MegaKino", StreamingPortal.MegaKino },
         };
 
         public static StreamingPortal ToStreamingPortal(this string streamingPortal)
