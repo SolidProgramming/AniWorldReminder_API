@@ -161,6 +161,8 @@ namespace AniWorldReminder_API
                 switch (streamingPortal)
                 {
                     case StreamingPortal.AniWorld:
+                        seriesInfo = await aniWordService.GetMediaInfoAsync(seriesPath);
+                        break;
                     case StreamingPortal.STO:
                         seriesInfo = await sTOService.GetMediaInfoAsync(seriesPath);
                         break;
