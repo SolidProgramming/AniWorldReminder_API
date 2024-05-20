@@ -314,7 +314,7 @@ namespace AniWorldReminder_API
 
                     await dbService.InsertUsersSeriesAsync(usersSeries);
 
-                    string messageText = $"{Emoji.Checkmark} Dein Reminder für <b>{series.Name}</b> wurde hinzugefügt.";
+                    string messageText = $"{Emoji.Checkmark} Dein Reminder f&uuml;r <b>{series.Name}</b> wurde hinzugef&uuml;gt.";
 
                     if (string.IsNullOrEmpty(series.CoverArtUrl))
                     {
@@ -347,7 +347,7 @@ namespace AniWorldReminder_API
 
                 await dbService.DeleteUsersSeriesAsync(usersSeries);
 
-                string messageText = $"{Emoji.Checkmark} Reminder für <b>{usersSeries.Series.Name}</b> wurde gelöscht.";
+                string messageText = $"{Emoji.Checkmark} Reminder f&uuml;r <b>{usersSeries.Series.Name}</b> wurde gel&ouml;scht.";
                 await telegramBotService.SendMessageAsync(long.Parse(usersSeries.Users.TelegramChatId), messageText);
 
                 return Results.Ok();
@@ -496,7 +496,7 @@ namespace AniWorldReminder_API
                 if (user is null || string.IsNullOrEmpty(user.TelegramChatId))
                     return Results.NotFound();
 
-                string messageText = $"{Emoji.ExclamationmarkRed}{Emoji.ExclamationmarkRed} Der AutoDLClient ist auf ein Captcha gelaufen{Emoji.ExclamationmarkRed}{Emoji.ExclamationmarkRed}\nDas Captcha muss gelöst werden damit der Downloader weiter machen kann{Emoji.ExclamationmarkRed}\nNavigiere auf dem PC mit dem Browser auf {streamingPortal} um das Captcha zu lösen.";
+                string messageText = $"{Emoji.ExclamationmarkRed}{Emoji.ExclamationmarkRed} Der AutoDLClient ist auf ein Captcha gelaufen{Emoji.ExclamationmarkRed}{Emoji.ExclamationmarkRed}\nDas Captcha muss gel&ouml;st werden damit der Downloader weiter machen kann{Emoji.ExclamationmarkRed}\nNavigiere auf dem PC mit dem Browser auf {streamingPortal} um das Captcha zu l&ouml;sen.";
                 await telegramBotService.SendMessageAsync(long.Parse(user.TelegramChatId), messageText);
 
                 return Results.Ok();

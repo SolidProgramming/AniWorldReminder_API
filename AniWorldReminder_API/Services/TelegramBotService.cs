@@ -1,4 +1,5 @@
-﻿using Telegram.Bot;
+﻿using System.Text;
+using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -54,7 +55,7 @@ namespace AniWorldReminder_API.Services
             {
                 return await BotClient.SendTextMessageAsync(
                     chatId: chatId,
-                    text: text,
+                    text: text.HtmlDecode(),
                     replyToMessageId: replyId,
                     parseMode: parseMode,
                     disableWebPagePreview: !showLinkPreview,
@@ -73,7 +74,7 @@ namespace AniWorldReminder_API.Services
                 return await BotClient.SendPhotoAsync(
                                chatId,
                          new InputFileUrl(photoUrl),
-                               caption: text,
+                               caption: text.HtmlDecode(),
                                parseMode: parseMode,
                                disableNotification: silentMessage);
             }
