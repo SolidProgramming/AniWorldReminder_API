@@ -66,7 +66,7 @@ namespace AniWorldReminder_API.Services
                 return null;
             }
         }
-        public async Task<Message?> SendPhotoAsync(long chatId, string photoUrl, string? text = null, ParseMode parseMode = ParseMode.Html, bool silentMessage = false)
+        public async Task<Message?> SendPhotoAsync(long chatId, string photoUrl, string? text = default, ParseMode parseMode = ParseMode.Html, bool silentMessage = false)
         {
             try
             {
