@@ -113,7 +113,7 @@ namespace AniWorldReminder_API.Services
             }
         }
 
-        public async Task<SeriesInfoModel?> GetMediaInfoAsync(string seriesPath)
+        public async Task<SeriesInfoModel?> GetMediaInfoAsync(string seriesPath, bool getMovieCoverArtUrl = false)
         {
             string seriesUrl;
 

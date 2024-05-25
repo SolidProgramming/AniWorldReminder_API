@@ -1,4 +1,5 @@
 ﻿using HtmlAgilityPack;
+using System;
 using System.Net;
 using System.Text;
 
@@ -103,7 +104,7 @@ namespace AniWorldReminder_API.Services
             throw new NotImplementedException();
         }
 
-        public async Task<SeriesInfoModel?> GetMediaInfoAsync(string seriesPath)
+        public async Task<SeriesInfoModel?> GetMediaInfoAsync(string seriesPath, bool getMovieCoverArtUrl = false)
         {
             string seriesUrl = $"{BaseUrl}/films/{seriesPath}.html";
          
@@ -116,16 +117,29 @@ namespace AniWorldReminder_API.Services
 
             HtmlDocument doc = new();
             doc.LoadHtml(content);
-                        
+
+            HtmlNode? titleNode = new HtmlNodeQueryBuilder()
+               .Query(doc)
+                   .GetNodesByQuery("//h1[@itemprop='name']")
+                       .FirstOrDefault();
+
             SeriesInfoModel seriesInfo = new()
             {
-                Name = seriesPath,
+                Name = titleNode?.InnerHtml,
                 DirectLink = seriesUrl,
-                Description = "",
-                CoverArtUrl = GetCoverArtUrl(doc, 0),
+                Description = GetDescription(doc),
                 StreamingPortal = StreamingPortal,
                 Path = $"/{seriesPath.TrimStart('/')}"
             };
+
+            if (getMovieCoverArtUrl)
+            {
+                seriesInfo.CoverArtUrl = GetMovieCoverArtUrl(doc);
+            }
+            else
+            {
+                seriesInfo.CoverArtUrl = GetCoverArtUrl(doc, 0);
+            }
 
             seriesInfo.CoverArtBase64 = await GetCoverArtBase64(seriesInfo.CoverArtUrl);
 
@@ -142,6 +156,32 @@ namespace AniWorldReminder_API.Services
                 return null;
 
             return BaseUrl + node.Attributes["data-src"].Value;
+        }
+
+        private string? GetMovieCoverArtUrl(HtmlDocument document)
+        {
+            HtmlNode? node = new HtmlNodeQueryBuilder()
+                .Query(document)
+                    .GetNodesByQuery("//div[@class='pmovie__poster img-fit-cover']/img")
+                        .FirstOrDefault();
+
+            if (node is null)
+                return null;
+
+            return BaseUrl + node.Attributes["data-src"].Value;
+        }
+
+        private string? GetDescription(HtmlDocument document)
+        {
+            HtmlNode? node = new HtmlNodeQueryBuilder()
+               .Query(document)
+                   .GetNodesByQuery("//div[@itemprop='description']/p")
+                    .FirstOrDefault();
+
+            if (node is null)
+                return null;
+                       
+            return node.InnerText;
         }
 
         private async Task<string?> GetCoverArtBase64(string url)

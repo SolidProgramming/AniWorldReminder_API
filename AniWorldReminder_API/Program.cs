@@ -167,7 +167,7 @@ namespace AniWorldReminder_API
                         seriesInfo = await sTOService.GetMediaInfoAsync(seriesPath);
                         break;
                     case StreamingPortal.MegaKino:
-                        seriesInfo = await megaKinoService.GetMediaInfoAsync(seriesPath);
+                        seriesInfo = await megaKinoService.GetMediaInfoAsync(seriesPath, getMovieCoverArtUrl: true);
                         break;
 
                     case StreamingPortal.Undefined:
