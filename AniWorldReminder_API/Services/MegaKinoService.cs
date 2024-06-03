@@ -82,9 +82,9 @@ namespace AniWorldReminder_API.Services
                     StreamingPortal = StreamingPortal,
                     CoverArtUrl = GetCoverArtUrl(doc, i),
                     Link = baseNode.Attributes["href"].Value,
-                    Path = GetLinkPath(baseNode.Attributes["href"].Value)
+                    Path = $"/{GetLinkPath(baseNode.Attributes["href"].Value).TrimStart('/')}"
                 };
-
+              
                 searchResult.CoverArtBase64 = await GetCoverArtBase64(searchResult.CoverArtUrl);
 
                 searchResults.Add(searchResult);
