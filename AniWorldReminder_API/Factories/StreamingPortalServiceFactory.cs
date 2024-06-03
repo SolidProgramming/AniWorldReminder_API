@@ -31,7 +31,7 @@
                     return new AniWorldSTOService(loggerAniWorld, httpClientFactory, "https://aniworld.to", "AniWorld", streamingPortal);
                 case StreamingPortal.MegaKino:
                     ILogger<MegaKinoService> loggerMegaKino = sp.GetRequiredService<ILogger<MegaKinoService>>();
-                    return new MegaKinoService(loggerMegaKino, httpClientFactory, "https://megakino.men", "MegaKino", streamingPortal);
+                    return new MegaKinoService(loggerMegaKino, httpClientFactory, "https://megakino.cab", "MegaKino", streamingPortal);
                 default:
                     throw new NotImplementedException();
             }

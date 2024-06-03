@@ -96,7 +96,7 @@ namespace AniWorldReminder_API.Services
 
         private string GetLinkPath(string href)
         {
-            return href.Split(new string[] { "https://megakino.men/" }, StringSplitOptions.None)[1].Replace("films", "").Replace("serials", "").Replace(".html", "");
+            return href.Split(new string[] { BaseUrl }, StringSplitOptions.None)[1].Replace("films", "").Replace("serials", "").Replace(".html", "");
         }
 
         public async Task<SeasonModel?> GetSeasonEpisodesLinksAsync(string seriesName, SeasonModel season)
