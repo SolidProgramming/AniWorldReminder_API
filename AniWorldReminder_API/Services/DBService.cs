@@ -150,6 +150,21 @@ namespace AniWorldReminder_API.Services
 
             return await connection.QuerySingleOrDefaultAsync<UserModel>(query, parameters);
         }
+        public async Task<UserModel?> GetAuthUserByIdAsync(string userId)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@UserId", userId },
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            string query = "SELECT * FROM users WHERE users.id = @UserId";
+
+            return await connection.QuerySingleOrDefaultAsync<UserModel>(query, parameters);
+        }
         public async Task<SeriesModel?> GetSeriesAsync(string seriesPath)
         {
             using MySqlConnection connection = new(DBConnectionString);
@@ -371,7 +386,7 @@ namespace AniWorldReminder_API.Services
 
             return await connection.QuerySingleOrDefaultAsync<UserWebsiteSettings>(query, parameters);
         }
-        public async Task UpdateUserWebsiteSettings(UserWebsiteSettings userWebsiteSettings)
+        public async Task UpdateUserWebsiteSettings(string userId, UserWebsiteSettings userWebsiteSettings)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
@@ -384,7 +399,7 @@ namespace AniWorldReminder_API.Services
             {
                 { "@TelegramDisableNotifications", userWebsiteSettings.TelegramDisableNotifications },
                 { "@TelegramNoCoverArtNotifications", userWebsiteSettings.TelegramNoCoverArtNotifications },
-                { "@UserId", userWebsiteSettings.UserId }
+                { "@UserId", userId }
             };
 
             DynamicParameters parameters = new(dictionary);
