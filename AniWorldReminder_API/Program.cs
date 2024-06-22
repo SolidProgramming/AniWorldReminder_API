@@ -368,15 +368,16 @@ namespace AniWorldReminder_API
             app.MapGet("/getUserSettings", [Authorize] async (HttpContext httpContext) =>
             {
                 string? userId = httpContext.GetClaim(CustomClaimType.UserId);
+                string? username = httpContext.GetClaim(CustomClaimType.Username);
 
-                if (string.IsNullOrEmpty(userId))
+                if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(username))
                     return Results.Unauthorized();
 
                 UserWebsiteSettings? userWebsiteSettings = await dbService.GetUserWebsiteSettings(userId);
 
                 if (userWebsiteSettings is null)
                 {
-                    UserModel? user = await dbService.GetAuthUserAsync(userId);
+                    UserModel? user = await dbService.GetAuthUserAsync(username);
 
                     if (user is null)
                         return Results.Unauthorized();
