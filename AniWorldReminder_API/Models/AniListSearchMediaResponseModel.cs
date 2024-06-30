@@ -114,7 +114,7 @@ namespace AniWorldReminder_API.Models
         public bool? HasNextPage { get; set; }
     }
 
-    public class AniListSearchMediaModel
+    public class AniListSearchMediaResponseModel
     {
         [JsonProperty("data")]
         public Data Data { get; set; }
@@ -140,6 +140,5 @@ namespace AniWorldReminder_API.Models
         [JsonProperty("userPreferred")]
         public string UserPreferred { get; set; }
     }
-
 
 }

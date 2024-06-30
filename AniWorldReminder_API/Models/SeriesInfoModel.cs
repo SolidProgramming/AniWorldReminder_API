@@ -10,5 +10,6 @@
         public string? Path { get; set; }
         public StreamingPortal StreamingPortal { get; set; }
         public List<SeasonModel> Seasons { get; set; } = [];
+        public Medium? AniListSearchMedia { get; set; }
     }
 }
