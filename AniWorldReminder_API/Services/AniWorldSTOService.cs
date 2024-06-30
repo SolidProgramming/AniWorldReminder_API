@@ -2,6 +2,10 @@
 using System.Text.RegularExpressions;
 using System.Text;
 using HtmlAgilityPack;
+using Newtonsoft.Json;
+using Org.BouncyCastle.Tls;
+using MySqlX.XDevAPI.Common;
+using System.Linq;
 
 namespace AniWorldReminder_API.Services
 {
@@ -61,6 +65,7 @@ namespace AniWorldReminder_API.Services
             string content = await resp.Content.ReadAsStringAsync();
 
             content = content.StripHtmlTags();
+
             try
             {
                 List<SearchResultModel>? searchResults = System.Text.Json.JsonSerializer.Deserialize<List<SearchResultModel>>(content);
@@ -86,6 +91,11 @@ namespace AniWorldReminder_API.Services
                 if (filteredSearchResults.Count == 0)
                     return (false, null);
 
+                string? query = AniListAPIQuery.GetQuery(AniListAPIQueryType.SearchMedia, seriesName);
+
+                if (string.IsNullOrEmpty(query))
+                    return (false, null);
+
                 HtmlDocument doc = new();
 
                 foreach (SearchResultModel result in filteredSearchResults)
@@ -97,12 +107,11 @@ namespace AniWorldReminder_API.Services
                     result.Description = result.Description.HtmlDecode().HtmlDecode();
                     result.StreamingPortal = StreamingPortal;
                     result.Path = result.Link.Replace("/anime/stream", "").Replace("/serie/stream", "");
-                   
+
                     html = await HttpClient.GetStringAsync($"{BaseUrl}{result.Link}");
                     doc.LoadHtml(html);
 
-                    result.CoverArtUrl = GetCoverArtUrl(doc)!;
-                    result.CoverArtBase64 = await GetCoverArtBase64(result.CoverArtUrl);
+                    result.CoverArtUrl = await GetCoverArtData(result.Title, doc);
                 }
 
                 return (true, filteredSearchResults);
@@ -154,19 +163,23 @@ namespace AniWorldReminder_API.Services
                     .GetNodesByQuery("//div[@class='series-title']/h1/span")
                         .FirstOrDefault();
 
+            string? seriesName = titleNode?.InnerHtml.HtmlDecode().HtmlDecode();
+
+            if (string.IsNullOrEmpty(seriesName))
+                return null;
+
+
             SeriesInfoModel seriesInfo = new()
             {
-                Name = titleNode?.InnerHtml.HtmlDecode().HtmlDecode(),
+                Name = seriesName,
                 DirectLink = seriesUrl,
                 Description = GetDescription(doc),
                 SeasonCount = seasonCount,
-                CoverArtUrl = GetCoverArtUrl(doc),
+                CoverArtUrl = await GetCoverArtData(seriesName, doc),
                 StreamingPortal = StreamingPortal,
                 Seasons = await GetSeasonsAsync(seriesPath, seasonCount),
                 Path = $"/{seriesPath.TrimStart('/')}"
             };
-
-            seriesInfo.CoverArtBase64 = await GetCoverArtBase64(seriesInfo.CoverArtUrl);
 
             foreach (SeasonModel season in seriesInfo.Seasons)
             {
@@ -415,6 +428,51 @@ namespace AniWorldReminder_API.Services
                 }
             }
             return default;
+        }
+
+        private async Task<string?> GetCoverArtData(string seriesName, HtmlDocument doc)
+        {
+            if (StreamingPortal == StreamingPortal.AniWorld)
+            {
+                string? query = AniListAPIQuery.GetQuery(AniListAPIQueryType.SearchMedia, seriesName);
+
+                if (string.IsNullOrEmpty(query))
+                    return null;
+
+                using StringContent postData = new(query, Encoding.UTF8, "application/json");
+                HttpResponseMessage? respAniList = await HttpClient.PostAsync(new Uri(AniListAPIQuery.Uri), postData);
+
+                string aniListResponse = await respAniList.Content.ReadAsStringAsync();
+                AniListSearchMediaModel? aniListSearch = JsonConvert.DeserializeObject<AniListSearchMediaModel>(aniListResponse);
+
+                if (aniListSearch?.Data.Page.Media.Count > 0)
+                {
+                    Medium? medium = aniListSearch.Data.Page.Media.FirstOrDefault(_ => _.Title.UserPreferred.Contains(seriesName) || _.Title.English.Contains(seriesName));
+
+                    if (medium == null)
+                        return aniListSearch.Data.Page.Media.FirstOrDefault()?.CoverImage.Large;
+
+                    return medium.CoverImage.Large;
+                }
+                else
+                {
+                    string? coverArtUrl = GetCoverArtUrl(doc);
+
+                    if (string.IsNullOrEmpty(coverArtUrl))
+                        return null;
+
+                    return await GetCoverArtBase64(coverArtUrl);
+                }
+            }
+            else
+            {
+                string? coverArtUrl = GetCoverArtUrl(doc);
+
+                if (string.IsNullOrEmpty(coverArtUrl))
+                    return null;
+
+                return await GetCoverArtBase64(coverArtUrl);
+            }
         }
 
         private static List<DirectViewLinkModel>? GetLanguageRedirectLinks(string html, string host)

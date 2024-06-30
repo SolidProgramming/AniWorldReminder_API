@@ -223,7 +223,7 @@ namespace AniWorldReminder_API.Services
             if (streamingPortalId < 1)
                 return -1;
 
-            string query = "INSERT INTO series (StreamingPortalId, Name, SeasonCount, EpisodeCount, Path, CoverArtUrl, CoverArtBase64) VALUES (@StreamingPortalId, @Name, @SeasonCount, @EpisodeCount, @SeriesPath, @CoverArtUrl, @CoverArtBase64); " +
+            string query = "INSERT INTO series (StreamingPortalId, Name, SeasonCount, EpisodeCount, Path, CoverArtUrl) VALUES (@StreamingPortalId, @Name, @SeasonCount, @EpisodeCount, @SeriesPath, @CoverArtUrl); " +
                 "select LAST_INSERT_ID()";
 
             Dictionary<string, object> dictionary = new()
@@ -233,8 +233,7 @@ namespace AniWorldReminder_API.Services
                 { "@SeasonCount", seriesInfo.SeasonCount },
                 { "@EpisodeCount", seriesInfo.Seasons.Last().EpisodeCount },
                 { "@SeriesPath", seriesInfo.Path },
-                { "@CoverArtUrl", seriesInfo.CoverArtUrl },
-                { "@CoverArtBase64", seriesInfo.CoverArtBase64 },
+                { "@CoverArtUrl", seriesInfo.CoverArtUrl }               
             };
 
             DynamicParameters parameters = new(dictionary);

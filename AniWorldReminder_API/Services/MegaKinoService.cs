@@ -85,8 +85,6 @@ namespace AniWorldReminder_API.Services
                     Path = $"/{GetLinkPath(baseNode.Attributes["href"].Value).TrimStart('/')}"
                 };
               
-                searchResult.CoverArtBase64 = await GetCoverArtBase64(searchResult.CoverArtUrl);
-
                 searchResults.Add(searchResult);
             }
 
@@ -140,8 +138,6 @@ namespace AniWorldReminder_API.Services
             {
                 seriesInfo.CoverArtUrl = GetCoverArtUrl(doc, 0);
             }
-
-            seriesInfo.CoverArtBase64 = await GetCoverArtBase64(seriesInfo.CoverArtUrl);
 
             return seriesInfo;
         }
