@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.IO;
+using System.Text;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -69,14 +70,30 @@ namespace AniWorldReminder_API.Services
         }
         public async Task<Message?> SendPhotoAsync(long chatId, string photoUrl, string? text = default, ParseMode parseMode = ParseMode.Html, bool silentMessage = false)
         {
+            const string base64Prefix = "data:image/png;base64,";
+
             try
-            {
-                return await BotClient.SendPhotoAsync(
+            {               
+                if (photoUrl.Trim().StartsWith(base64Prefix))
+                {
+                    photoUrl = photoUrl.Replace(base64Prefix, "");
+
+                    return await BotClient.SendPhotoAsync(
+                               chatId,
+                         new InputFileStream(new MemoryStream(Convert.FromBase64String(photoUrl))),
+                               caption: text.HtmlDecode(),
+                               parseMode: parseMode,
+                               disableNotification: silentMessage);
+                }
+                else
+                {
+                    return await BotClient.SendPhotoAsync(
                                chatId,
                          new InputFileUrl(photoUrl),
                                caption: text.HtmlDecode(),
                                parseMode: parseMode,
                                disableNotification: silentMessage);
+                }
             }
             catch (Exception)
             {
