@@ -56,6 +56,7 @@ namespace AniWorldReminder_API
             builder.Services.AddSingleton<IDBService, DBService>();
             builder.Services.AddSingleton<Interfaces.IHttpClientFactory, HttpClientFactory>();
             builder.Services.AddSingleton<ITelegramBotService, TelegramBotService>();
+            builder.Services.AddSingleton<ITMDBService, TMDBService>();
 
             builder.Services.AddSingleton<IStreamingPortalServiceFactory>(_ =>
             {
@@ -111,7 +112,7 @@ namespace AniWorldReminder_API
 
             if (!await megaKinoService.InitAsync(proxy))
                 return;
-
+                       
             if (appSettings is not null && appSettings.AddSwagger)
             {
                 app.UseSwagger();

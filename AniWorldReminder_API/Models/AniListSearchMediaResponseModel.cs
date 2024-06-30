@@ -6,19 +6,19 @@ namespace AniWorldReminder_API.Models
     public class CoverImage
     {
         [JsonProperty("large")]
-        public string Large { get; set; }
+        public string? Large { get; set; }
 
         [JsonProperty("medium")]
-        public string Medium { get; set; }
+        public string? Medium { get; set; }
 
         [JsonProperty("color")]
-        public string Color { get; set; }
+        public string? Color { get; set; }
     }
 
     public class Data
     {
         [JsonProperty("Page")]
-        public Page Page { get; set; }
+        public Page? Page { get; set; }
     }
 
     public class EndDate
@@ -39,34 +39,34 @@ namespace AniWorldReminder_API.Models
         public int? Id { get; set; }
 
         [JsonProperty("title")]
-        public Title Title { get; set; }
+        public Title? Title { get; set; }
 
         [JsonProperty("coverImage")]
-        public CoverImage CoverImage { get; set; }
+        public CoverImage? CoverImage { get; set; }
 
         [JsonProperty("startDate")]
-        public StartDate StartDate { get; set; }
+        public StartDate? StartDate { get; set; }
 
         [JsonProperty("endDate")]
-        public EndDate EndDate { get; set; }
+        public EndDate? EndDate { get; set; }
 
         [JsonProperty("season")]
-        public string Season { get; set; }
+        public string? Season { get; set; }
 
         [JsonProperty("seasonYear")]
         public int? SeasonYear { get; set; }
 
         [JsonProperty("description")]
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         [JsonProperty("type")]
-        public string Type { get; set; }
+        public string? Type { get; set; }
 
         [JsonProperty("format")]
-        public string Format { get; set; }
+        public string? Format { get; set; }
 
         [JsonProperty("status")]
-        public string Status { get; set; }
+        public string? Status { get; set; }
 
         [JsonProperty("episodes")]
         public int? Episodes { get; set; }
@@ -75,7 +75,7 @@ namespace AniWorldReminder_API.Models
         public int? Duration { get; set; }
 
         [JsonProperty("genres")]
-        public List<string> Genres { get; set; }
+        public List<string>? Genres { get; set; }
 
         [JsonProperty("isAdult")]
         public bool? IsAdult { get; set; }
@@ -84,16 +84,16 @@ namespace AniWorldReminder_API.Models
         public int? AverageScore { get; set; }
 
         [JsonProperty("nextAiringEpisode")]
-        public object NextAiringEpisode { get; set; }
+        public object? NextAiringEpisode { get; set; }
     }
 
     public class Page
     {
         [JsonProperty("pageInfo")]
-        public PageInfo PageInfo { get; set; }
+        public PageInfo? PageInfo { get; set; }
 
         [JsonProperty("media")]
-        public List<Medium> Media { get; set; }
+        public List<Medium>? Media { get; set; }
     }
 
     public class PageInfo
@@ -117,7 +117,7 @@ namespace AniWorldReminder_API.Models
     public class AniListSearchMediaResponseModel
     {
         [JsonProperty("data")]
-        public Data Data { get; set; }
+        public Data? Data { get; set; }
     }
 
     public class StartDate
@@ -135,10 +135,10 @@ namespace AniWorldReminder_API.Models
     public class Title
     {
         [JsonProperty("english")]
-        public string English { get; set; }
+        public string? English { get; set; }
 
         [JsonProperty("userPreferred")]
-        public string UserPreferred { get; set; }
+        public string? UserPreferred { get; set; }
     }
 
 }

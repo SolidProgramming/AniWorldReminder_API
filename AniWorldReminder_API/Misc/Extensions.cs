@@ -13,6 +13,10 @@ namespace AniWorldReminder_API.Misc
         {
             return HttpUtility.HtmlDecode(text);
         }
+        public static string UrlEncode(this string text)
+        {
+            return HttpUtility.UrlEncode(text);
+        }
         public static string SearchSanitize(this string text)
         {
             return text

@@ -18,5 +18,8 @@ namespace AniWorldReminder_API.Models
 
         [JsonPropertyName(name: "Jwt")]
         public JwtSettingsModel JwtSettings { get; set; } = default!;
+
+        [JsonPropertyName(name: "TMDB")]
+        public TMDBSettingsModel TMDBSettings { get; set; } = default!;
     }
 }

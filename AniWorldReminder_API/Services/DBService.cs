@@ -1,7 +1,5 @@
 ﻿using Dapper;
 using MySql.Data.MySqlClient;
-using System.Collections.Generic;
-using Telegram.Bot.Types;
 
 namespace AniWorldReminder_API.Services
 {

@@ -3,14 +3,10 @@ using System.Text.RegularExpressions;
 using System.Text;
 using HtmlAgilityPack;
 using Newtonsoft.Json;
-using Org.BouncyCastle.Tls;
-using MySqlX.XDevAPI.Common;
-using System.Linq;
-using AniWorldReminder_API.Models;
 
 namespace AniWorldReminder_API.Services
 {
-    public class AniWorldSTOService(ILogger<AniWorldSTOService> logger, Interfaces.IHttpClientFactory httpClientFactory, string baseUrl, string name, StreamingPortal streamingPortal)
+    public class AniWorldSTOService(ILogger<AniWorldSTOService> logger, Interfaces.IHttpClientFactory httpClientFactory, string baseUrl, string name, StreamingPortal streamingPortal, ITMDBService tmdbService)
         : IStreamingPortalService
     {
         private HttpClient? HttpClient;
@@ -185,9 +181,27 @@ namespace AniWorldReminder_API.Services
                 CoverArtUrl = await GetCoverArtData(seriesName, doc, aniListSearchMediaResponse),
                 StreamingPortal = StreamingPortal,
                 Seasons = await GetSeasonsAsync(seriesPath, seasonCount),
-                Path = $"/{seriesPath.TrimStart('/')}",
-                AniListSearchMedia = GetAniListSearchMedia(seriesName, aniListSearchMediaResponse),
+                Path = $"/{seriesPath.TrimStart('/')}"               
             };
+
+            if (StreamingPortal == StreamingPortal.STO)
+            {
+                TMDBSearchTVModel? searchTV = await tmdbService.SearchTVShow(seriesName);
+
+                if (searchTV is not null && searchTV.Results is not null)
+                {
+                    int? tmdbSeriesId = searchTV.Results.FirstOrDefault(_ => _.Name!.Contains(seriesName))?.Id;
+
+                    if (tmdbSeriesId is not null && tmdbSeriesId > 0)
+                    {
+                        seriesInfo.TMDBSearchTVById = await tmdbService.SearchTVShowById(tmdbSeriesId);
+                    }
+                }
+            }else if (StreamingPortal == StreamingPortal.AniWorld)
+            {
+                seriesInfo.AniListSearchMedia = GetAniListSearchMedia(seriesName, aniListSearchMediaResponse);
+            }
+            
 
             foreach (SeasonModel season in seriesInfo.Seasons)
             {
