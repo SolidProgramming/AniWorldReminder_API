@@ -19,6 +19,10 @@ namespace AniWorldReminder_API.Misc
         }
         public static string SearchSanitize(this string text)
         {
+            Regex regex = new Regex("\\s\\(\\d{4}\\)", RegexOptions.IgnoreCase);
+
+            text = regex.Replace(text, "");
+
             return text
                 .Replace("+", "%2B")
                 .Replace(' ', '+')

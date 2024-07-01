@@ -5,7 +5,6 @@ global using AniWorldReminder_API.Enums;
 global using AniWorldReminder_API.Misc;
 global using AniWorldReminder_API.Factories;
 global using AniWorldReminder_API.Services;
-using Newtonsoft.Json;
 using System.Net;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
@@ -112,7 +111,7 @@ namespace AniWorldReminder_API
 
             if (!await megaKinoService.InitAsync(proxy))
                 return;
-                       
+
             if (appSettings is not null && appSettings.AddSwagger)
             {
                 app.UseSwagger();
@@ -150,7 +149,8 @@ namespace AniWorldReminder_API
 
                 allSearchResults = allSearchResults.DistinctBy(_ => _.Title).ToList();
 
-                return JsonConvert.SerializeObject(allSearchResults);
+                return Results.Ok(allSearchResults);
+                //return JsonConvert.SerializeObject(allSearchResults);
             }).WithOpenApi();
 
             app.MapGet("/getSeriesInfo", [Authorize] async (string seriesPath, string hoster) =>
@@ -158,7 +158,7 @@ namespace AniWorldReminder_API
                 StreamingPortal streamingPortal = StreamingPortalHelper.GetStreamingPortalByName(hoster);
 
                 SeriesInfoModel? seriesInfo = default;
-                
+
                 switch (streamingPortal)
                 {
                     case StreamingPortal.AniWorld:
@@ -176,7 +176,8 @@ namespace AniWorldReminder_API
                         break;
                 }
 
-                return JsonConvert.SerializeObject(seriesInfo);
+                return Results.Ok(seriesInfo);
+                // return JsonConvert.SerializeObject(seriesInfo);
             }).WithOpenApi();
 
             app.MapPost("/verify", async ([FromBody] VerifyRequestModel verifyRequest) =>
@@ -363,7 +364,7 @@ namespace AniWorldReminder_API
 
             app.MapGet("/getUserSettings", [Authorize] async (HttpContext httpContext) =>
             {
-                string? userId = httpContext.GetClaim(CustomClaimType.UserId);                
+                string? userId = httpContext.GetClaim(CustomClaimType.UserId);
 
                 if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();

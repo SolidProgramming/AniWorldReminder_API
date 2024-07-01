@@ -2,7 +2,7 @@
 using System.Text.RegularExpressions;
 using System.Text;
 using HtmlAgilityPack;
-using Newtonsoft.Json;
+using Org.BouncyCastle.Tls;
 
 namespace AniWorldReminder_API.Services
 {
@@ -186,18 +186,9 @@ namespace AniWorldReminder_API.Services
 
             if (StreamingPortal == StreamingPortal.STO)
             {
-                TMDBSearchTVModel? searchTV = await tmdbService.SearchTVShow(seriesName);
-
-                if (searchTV is not null && searchTV.Results is not null)
-                {
-                    int? tmdbSeriesId = searchTV.Results.FirstOrDefault(_ => _.Name!.Contains(seriesName))?.Id;
-
-                    if (tmdbSeriesId is not null && tmdbSeriesId > 0)
-                    {
-                        seriesInfo.TMDBSearchTVById = await tmdbService.SearchTVShowById(tmdbSeriesId);
-                    }
-                }
-            }else if (StreamingPortal == StreamingPortal.AniWorld)
+                seriesInfo.TMDBSearchTVById = await GetTMDBSearchTVByIdModel(seriesName);
+            }
+            else if (StreamingPortal == StreamingPortal.AniWorld)
             {
                 seriesInfo.AniListSearchMedia = GetAniListSearchMedia(seriesName, aniListSearchMediaResponse);
             }
@@ -229,12 +220,29 @@ namespace AniWorldReminder_API.Services
             if (!respAniList.IsSuccessStatusCode)
                 return default;
 
-            string aniListResponse = await respAniList.Content.ReadAsStringAsync();
+            return await respAniList.Content.ReadFromJsonAsync<AniListSearchMediaResponseModel>();
+        }
 
-            if (string.IsNullOrEmpty(aniListResponse))
-                return default;
+        private async Task<TMDBSearchTVByIdModel?> GetTMDBSearchTVByIdModel(string seriesName)
+        {
+            TMDBSearchTVModel? searchTV = await tmdbService.SearchTVShow(seriesName.SearchSanitize());
 
-            return JsonConvert.DeserializeObject<AniListSearchMediaResponseModel>(aniListResponse);
+            if (searchTV is not null && searchTV.Results is not null)
+            {
+                int? tmdbSeriesId = searchTV.Results.FirstOrDefault(_ => _.Name!.Contains(seriesName) || seriesName.Contains(_.Name))?.Id;
+
+                if (tmdbSeriesId is not null && tmdbSeriesId > 0)
+                {
+                    return await tmdbService.SearchTVShowById(tmdbSeriesId);
+                }
+                else if (tmdbSeriesId is null && tmdbSeriesId is null && searchTV.Results.Count > 0)
+                {
+                    tmdbSeriesId = searchTV.Results.First()?.Id;
+                    return await tmdbService.SearchTVShowById(tmdbSeriesId);
+                }
+            }
+
+            return default;
         }
 
         private async Task<List<SeasonModel>> GetSeasonsAsync(string seriesPath, int seasonCount)
