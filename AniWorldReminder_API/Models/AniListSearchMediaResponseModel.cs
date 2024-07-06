@@ -81,7 +81,7 @@ namespace AniWorldReminder_API.Models
         public bool? IsAdult { get; set; }
 
         [JsonProperty("averageScore")]
-        public int? AverageScore { get; set; }
+        public decimal? AverageScore { get; set; }
 
         [JsonProperty("nextAiringEpisode")]
         public object? NextAiringEpisode { get; set; }

@@ -7,6 +7,7 @@
         GerDub = 1,
         EngSub = 2,
         GerSub = 4,
-        EngDub = 8
+        EngDub = 8,
+        EngDubGerSub = 16
     }
 }
