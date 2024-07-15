@@ -29,5 +29,6 @@
         Task<UserModel?> GetUserByAPIKey(string apiKey);
         Task SetDownloaderPreferences(string apiKey, DownloaderPreferencesModel downloaderPreferences);
         Task<DownloaderPreferencesModel?> GetDownloaderPreferences(string apiKey);
+        Task InsertMovieDownloadAsync(AddMovieDownloadRequestModel download);
     }
 }

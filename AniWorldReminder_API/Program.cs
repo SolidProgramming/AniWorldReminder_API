@@ -476,7 +476,12 @@ namespace AniWorldReminder_API
 
                 int downloadCount = await dbService.GetDownloadsCount(apiKey);
 
-                return Results.Ok(downloadCount);
+                DownloadCountModel downloadsCount = new()
+                {
+                    DownloadsCount =  downloadCount
+                };
+
+                return Results.Ok(downloadsCount);
             }).WithOpenApi();
 
             app.MapGet("/captchaNotify", [AllowAnonymous] async (HttpContext httpContext, string streamingPortal) =>
@@ -519,6 +524,23 @@ namespace AniWorldReminder_API
                 DownloaderPreferencesModel? downloaderPreferences = await dbService.GetDownloaderPreferences(apiKey);
 
                 return Results.Ok(downloaderPreferences);
+            }).WithOpenApi();
+
+            app.MapPost("/addMovieDownload", [Authorize] async (HttpContext httpContext, [FromBody] AddMovieDownloadRequestModel download) =>
+            {
+                string? userId = httpContext.GetClaim(CustomClaimType.UserId);
+
+                if (string.IsNullOrEmpty(userId))
+                    return Results.Unauthorized();
+
+                if (string.IsNullOrEmpty(download.DirectUrl))
+                    return Results.BadRequest();
+
+                download.UserId = userId;               
+
+                await dbService.InsertMovieDownloadAsync(download);
+
+                return Results.Ok();
             }).WithOpenApi();
 
             app.Run();

@@ -231,7 +231,7 @@ namespace AniWorldReminder_API.Services
                 { "@SeasonCount", seriesInfo.SeasonCount },
                 { "@EpisodeCount", seriesInfo.Seasons.Last().EpisodeCount },
                 { "@SeriesPath", seriesInfo.Path },
-                { "@CoverArtUrl", seriesInfo.CoverArtUrl }               
+                { "@CoverArtUrl", seriesInfo.CoverArtUrl }
             };
 
             DynamicParameters parameters = new(dictionary);
@@ -698,6 +698,31 @@ namespace AniWorldReminder_API.Services
             }
 
             return preferences;
+        }
+        public async Task InsertMovieDownloadAsync(AddMovieDownloadRequestModel download)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string selectQuery = "SELECT EXISTS(" +
+                   "SELECT * FROM movie_download " +
+                   "WHERE DirectUrl = @DirectUrl AND UsersId = @UsersId)";
+
+            string query = "INSERT INTO movie_download (DirectUrl, UsersId) VALUES (@DirectUrl, @UsersId)";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@DirectUrl",  download.DirectUrl},
+                { "@UsersId",  download.UserId},
+            };
+
+            int rows = await connection.ExecuteScalarAsync<int>(selectQuery, dictionary);
+
+            if (rows > 0)
+                return;
+
+            DynamicParameters parameters = new(dictionary);
+
+            await connection.ExecuteAsync(query, parameters);
         }
     }
 }
