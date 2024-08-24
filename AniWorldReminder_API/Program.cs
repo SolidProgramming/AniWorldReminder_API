@@ -11,6 +11,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
 
 namespace AniWorldReminder_API
 {
@@ -19,6 +21,8 @@ namespace AniWorldReminder_API
         public static async Task Main(string[] args)
         {
             WebApplicationBuilder? builder = WebApplication.CreateBuilder(args);
+
+            builder.Services.AddDistributedMemoryCache();
 
             JwtSettingsModel? jwtSettings = SettingsHelper.ReadSettings<JwtSettingsModel>();
 
@@ -153,11 +157,17 @@ namespace AniWorldReminder_API
                 //return JsonConvert.SerializeObject(allSearchResults);
             }).WithOpenApi();
 
-            app.MapGet("/getSeriesInfo", [Authorize] async (string seriesPath, string hoster) =>
+            app.MapGet("/getSeriesInfo", [Authorize] async (IDistributedCache cache, string seriesPath, string hoster) =>
             {
                 StreamingPortal streamingPortal = StreamingPortalHelper.GetStreamingPortalByName(hoster);
 
                 SeriesInfoModel? seriesInfo = default;
+
+                string cachePath = $"{seriesPath}@{hoster}";
+                var cachedSeriesInfo = await cache.GetAsync(cachePath);
+
+                if (cachedSeriesInfo is not null)                
+                    return Results.Ok(JsonSerializer.Deserialize<SeriesInfoModel>(cachedSeriesInfo));
 
                 switch (streamingPortal)
                 {
@@ -173,11 +183,16 @@ namespace AniWorldReminder_API
 
                     case StreamingPortal.Undefined:
                     default:
-                        break;
+                        return Results.BadRequest();
                 }
 
+                await cache.SetAsync(cachePath, Encoding.UTF8.GetBytes(JsonSerializer.Serialize(seriesInfo)), new DistributedCacheEntryOptions()
+                {
+                    SlidingExpiration = TimeSpan.FromMinutes(180)
+                });
+
                 return Results.Ok(seriesInfo);
-                // return JsonConvert.SerializeObject(seriesInfo);
+
             }).WithOpenApi();
 
             app.MapPost("/verify", async ([FromBody] VerifyRequestModel verifyRequest) =>
@@ -402,18 +417,32 @@ namespace AniWorldReminder_API
                 return Results.Ok();
             }).WithOpenApi();
 
-            app.MapGet("/getSeasonEpisodesLinks", [Authorize] async (string seriesPath, string streamingPortal, [FromBody] SeasonModel season) =>
+            app.MapGet("/getSeasonEpisodesLinks", [Authorize] async (string seriesPath, string streamingPortal, [FromBody] SeasonModel seasonRequest, IDistributedCache cache) =>
             {
+                string cachePath = $"{seriesPath}@{streamingPortal}:{seasonRequest.Id}";
+                var cachedEpisodeLinks = await cache.GetAsync(cachePath);
+
+                if (cachedEpisodeLinks is not null)
+                    return Results.Ok(JsonSerializer.Deserialize<SeasonModel>(cachedEpisodeLinks));
+
+                SeasonModel? seasonData = default;
+
                 if (streamingPortal.ToLower() == StreamingPortal.STO.ToString().ToLower())
                 {
-                    return await sTOService.GetSeasonEpisodesLinksAsync(seriesPath, season);
+                    seasonData = await sTOService.GetSeasonEpisodesLinksAsync(seriesPath, seasonRequest);
                 }
                 else if (streamingPortal.ToLower() == StreamingPortal.AniWorld.ToString().ToLower())
                 {
-                    return await aniWordService.GetSeasonEpisodesLinksAsync(seriesPath, season);
+                    seasonData = await aniWordService.GetSeasonEpisodesLinksAsync(seriesPath, seasonRequest);
                 }
 
-                return default;
+                await cache.SetAsync(cachePath, Encoding.UTF8.GetBytes(JsonSerializer.Serialize(seasonData)), new()
+                {
+                    SlidingExpiration = TimeSpan.FromMinutes(180)
+                });
+
+                return Results.Ok(seasonData);
+
             }).WithOpenApi();
 
             app.MapGet("/getDownloads", [AllowAnonymous] async (HttpContext httpContext) =>
