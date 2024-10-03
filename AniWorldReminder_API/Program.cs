@@ -151,10 +151,8 @@ namespace AniWorldReminder_API
                         allSearchResults.AddRange(searchResultsSTO);
                 }
 
-                allSearchResults = allSearchResults.DistinctBy(_ => _.Title).ToList();
-
                 return Results.Ok(allSearchResults);
-                //return JsonConvert.SerializeObject(allSearchResults);
+
             }).WithOpenApi();
 
             app.MapGet("/getSeriesInfo", [Authorize] async (IDistributedCache cache, string seriesPath, string hoster) =>
