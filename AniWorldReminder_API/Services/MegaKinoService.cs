@@ -44,19 +44,19 @@ namespace AniWorldReminder_API.Services
         {
             return HttpClient;
         }
-        public async Task<(bool success, List<SearchResultModel>? searchResults)> GetMediaAsync(string seriesName, bool strictSearch = false)
+        public async Task<List<SearchResultModel>?> GetMediaAsync(string seriesName, bool strictSearch = false)
         {
-            (bool reachable, string? html) = await StreamingPortalHelper.GetHosterReachableAsync(this);
+            (bool reachable, string? _) = await StreamingPortalHelper.GetHosterReachableAsync(this);
 
             if (!reachable)
-                return (false, null);
+                return default;
 
             using StringContent postData = new($"keyword=do=search&subaction=search&search_start=0&full_search=0&result_from=1&story={seriesName.SearchSanitize()}", Encoding.UTF8, "application/x-www-form-urlencoded");
 
             HttpResponseMessage? resp = await HttpClient.PostAsync(new Uri($"{BaseUrl}/index.php?do=search"), postData);
 
             if (!resp.IsSuccessStatusCode)
-                return (false, null);
+                return default;
 
             string content = await resp.Content.ReadAsStringAsync();
 
@@ -89,7 +89,7 @@ namespace AniWorldReminder_API.Services
             }
 
 
-            return (true, searchResults);
+            return searchResults;
         }
 
         private string GetLinkPath(string href)

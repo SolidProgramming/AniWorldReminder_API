@@ -40,12 +40,12 @@ namespace AniWorldReminder_API.Services
             return success;
         }
 
-        public async Task<(bool success, List<SearchResultModel>? searchResults)> GetMediaAsync(string seriesName, bool strictSearch = false)
+        public async Task<List<SearchResultModel>?> GetMediaAsync(string seriesName, bool strictSearch = false)
         {
             (bool reachable, string? html) = await StreamingPortalHelper.GetHosterReachableAsync(this);
 
             if (!reachable)
-                return (false, null);
+                return default;
 
 
             if (seriesName.Contains("'"))
@@ -53,16 +53,15 @@ namespace AniWorldReminder_API.Services
                 seriesName = seriesName.Split('\'')[0];
 
                 if (string.IsNullOrWhiteSpace(seriesName))
-                    return (false, null);
+                    return default;
             }
-
 
             using StringContent postData = new($"keyword={seriesName.SearchSanitize()}", Encoding.UTF8, "application/x-www-form-urlencoded");
 
             HttpResponseMessage? resp = await HttpClient.PostAsync(new Uri($"{BaseUrl}/ajax/search"), postData);
 
             if (!resp.IsSuccessStatusCode)
-                return (false, null);
+                return default;
 
             string content = await resp.Content.ReadAsStringAsync();
 
@@ -73,10 +72,10 @@ namespace AniWorldReminder_API.Services
                 List<SearchResultModel>? searchResults = System.Text.Json.JsonSerializer.Deserialize<List<SearchResultModel>>(content);
 
                 if (searchResults is null)
-                    return (false, null);
+                    return default;
 
                 if (!searchResults.Any(_ => _.Link.Contains("/stream")))
-                    return (false, null);
+                    return default;
 
                 List<SearchResultModel>? filteredSearchResults = searchResults.Where(_ =>
                     _.Link.Contains("/stream") &&
@@ -90,7 +89,7 @@ namespace AniWorldReminder_API.Services
                 }
 
                 if (filteredSearchResults.Count == 0)
-                    return (false, null);
+                    return default;
 
                 HtmlDocument doc = new();
 
@@ -141,11 +140,11 @@ namespace AniWorldReminder_API.Services
                     }
                 }
 
-                return (true, filteredSearchResults);
+                return filteredSearchResults;
             }
             catch (Exception)
             {
-                return (false, null);
+                return default;
             }
         }
 
