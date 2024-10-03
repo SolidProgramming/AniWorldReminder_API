@@ -13,9 +13,6 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
-using System.Diagnostics;
-using System.Collections.Generic;
-using Microsoft.OpenApi.Services;
 
 namespace AniWorldReminder_API
 {
