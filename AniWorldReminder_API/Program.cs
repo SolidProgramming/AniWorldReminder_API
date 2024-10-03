@@ -13,6 +13,9 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
+using System.Diagnostics;
+using System.Collections.Generic;
+using Microsoft.OpenApi.Services;
 
 namespace AniWorldReminder_API
 {
@@ -132,23 +135,26 @@ namespace AniWorldReminder_API
 
                 if (mediaType.HasFlag(MediaType.Films))
                 {
-                    (bool _, List<SearchResultModel>? searchResultsMegaKino) = await megaKinoService.GetMediaAsync(seriesName);
+                   List<SearchResultModel>? searchResultsMegaKino = await megaKinoService.GetMediaAsync(seriesName);
 
                     if (searchResultsMegaKino.HasItems())
-                        allSearchResults.AddRange(searchResultsMegaKino);
+                        allSearchResults.AddRange(searchResultsMegaKino!);
                 }
 
                 if (mediaType.HasFlag(MediaType.Series))
                 {
-                    (bool _, List<SearchResultModel>? searchResultsAniWorld) = await aniWordService.GetMediaAsync(seriesName);
-                    (bool _, List<SearchResultModel>? searchResultsSTO) = await sTOService.GetMediaAsync(seriesName);
+                    List<Task<List<SearchResultModel>?>> tasks = [];
 
+                    tasks.Add(aniWordService.GetMediaAsync(seriesName));
+                    tasks.Add(sTOService.GetMediaAsync(seriesName));
 
-                    if (searchResultsAniWorld.HasItems())
-                        allSearchResults.AddRange(searchResultsAniWorld);
+                    List<SearchResultModel>?[] taskResults = await Task.WhenAll(tasks);
 
-                    if (searchResultsSTO.HasItems())
-                        allSearchResults.AddRange(searchResultsSTO);
+                    foreach (List<SearchResultModel>? searchResult in taskResults)
+                    {
+                        if (searchResult.HasItems())
+                            allSearchResults.AddRange(searchResult!);
+                    }
                 }
 
                 return Results.Ok(allSearchResults);
@@ -164,7 +170,7 @@ namespace AniWorldReminder_API
                 string cachePath = $"{seriesPath}@{hoster}";
                 var cachedSeriesInfo = await cache.GetAsync(cachePath);
 
-                if (cachedSeriesInfo is not null)                
+                if (cachedSeriesInfo is not null)
                     return Results.Ok(JsonSerializer.Deserialize<SeriesInfoModel>(cachedSeriesInfo));
 
                 switch (streamingPortal)
@@ -505,7 +511,7 @@ namespace AniWorldReminder_API
 
                 DownloadCountModel downloadsCount = new()
                 {
-                    DownloadsCount =  downloadCount
+                    DownloadsCount = downloadCount
                 };
 
                 return Results.Ok(downloadsCount);
@@ -563,7 +569,7 @@ namespace AniWorldReminder_API
                 if (string.IsNullOrEmpty(download.DirectUrl))
                     return Results.BadRequest();
 
-                download.UserId = userId;               
+                download.UserId = userId;
 
                 await dbService.InsertMovieDownloadAsync(download);
 
