@@ -77,6 +77,7 @@ namespace AniWorldReminder_API.Services
                     return default;
 
                 List<SearchResultModel>? filteredSearchResults = searchResults.Where(_ =>
+                    !_.Link.StartsWith("/support") &&
                     _.Link.Contains("/stream") &&
                     !_.Link.Contains("staffel") &&
                     !_.Link.Contains("episode"))
