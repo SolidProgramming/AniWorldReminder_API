@@ -91,7 +91,10 @@ namespace AniWorldReminder_API.Services
 
             return searchResults;
         }
-
+        public async Task<List<SearchResultModel>?> GetPopularAsync()
+        {
+            throw new NotImplementedException();
+        }
         private string GetLinkPath(string href)
         {
             return href.Split(new string[] { BaseUrl }, StringSplitOptions.None)[1].Replace("films", "").Replace("serials", "").Replace(".html", "");

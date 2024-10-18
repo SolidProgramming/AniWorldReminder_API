@@ -13,6 +13,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
+using Org.BouncyCastle.Tls;
 
 namespace AniWorldReminder_API
 {
@@ -195,6 +196,39 @@ namespace AniWorldReminder_API
                 return Results.Ok(seriesInfo);
 
             }).WithOpenApi();
+
+            app.MapGet("/getPopular", [AllowAnonymous] async (IDistributedCache cache) =>
+            {
+                string cachePath = "popularAtHosters";
+
+                var cachedPopularSeries = await cache.GetAsync(cachePath);
+
+                if (cachedPopularSeries is not null)
+                    return Results.Ok(JsonSerializer.Deserialize<List<SearchResultModel>?>(cachedPopularSeries));
+
+                List<Task<List<SearchResultModel>?>> tasks = [];
+
+                tasks.Add(aniWordService.GetPopularAsync());
+                tasks.Add(sTOService.GetPopularAsync());
+
+                List<SearchResultModel>?[] taskResults = await Task.WhenAll(tasks);
+                List<SearchResultModel> allPopularSeries = [];
+
+                foreach (List<SearchResultModel>? popularSeries in taskResults)
+                {
+                    if (popularSeries.HasItems())
+                        allPopularSeries.AddRange(popularSeries!);
+                }
+
+                await cache.SetAsync(cachePath, Encoding.UTF8.GetBytes(JsonSerializer.Serialize(allPopularSeries)), new DistributedCacheEntryOptions()
+                {
+                    SlidingExpiration = TimeSpan.FromHours(12)
+                });
+
+                allPopularSeries.Shuffle();
+
+                return Results.Ok(allPopularSeries);
+            });
 
             app.MapPost("/verify", async ([FromBody] VerifyRequestModel verifyRequest) =>
             {

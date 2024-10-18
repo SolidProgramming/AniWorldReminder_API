@@ -11,6 +11,7 @@ namespace AniWorldReminder_API.Interfaces
         Task<List<SearchResultModel>?> GetMediaAsync(string seriesName, bool strictSearch = false);
         Task<SeriesInfoModel?> GetMediaInfoAsync(string seriesPath, bool getMovieCoverArtUrl = false);
         Task<SeasonModel?> GetSeasonEpisodesLinksAsync(string seriesName, SeasonModel season);
+        Task<List<SearchResultModel>?> GetPopularAsync();
         HttpClient? GetHttpClient();
     }
 }

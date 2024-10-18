@@ -39,6 +39,97 @@ namespace AniWorldReminder_API.Services
             return success;
         }
 
+        public async Task<List<SearchResultModel>?> GetPopularAsync()
+        {
+            (bool reachable, string? html) = await StreamingPortalHelper.GetHosterReachableAsync(this);
+
+            if (!reachable)
+                return default;
+
+            HttpResponseMessage? resp = await HttpClient.GetAsync(new Uri(BaseUrl));
+
+            if (!resp.IsSuccessStatusCode)
+                return null;
+
+            string content = await resp.Content.ReadAsStringAsync();
+
+            HtmlDocument doc = new();
+            doc.LoadHtml(content);
+
+            List<HtmlNode>? popularSeriesNode = new HtmlNodeQueryBuilder()
+               .Query(doc)
+                   .GetNodesByQuery("//div[@class='preview rows sevenCols']/div[@class='coverListItem']/a");
+
+            if (popularSeriesNode is null || popularSeriesNode.Count == 0)
+                return default;
+
+            List<SearchResultModel>? popularSeries = [];
+
+            Random rnd = new();
+
+            foreach (HtmlNode node in popularSeriesNode.OrderBy(x => rnd.Next()).Take(5))
+            {
+                SearchResultModel searchResult = new();
+                try
+                {
+                    searchResult.Link = node.Attributes["href"].Value;
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                if (!searchResult.Link.StartsWith("/anime/stream") && !searchResult.Link.StartsWith("/serie/stream"))
+                    continue;
+
+                searchResult.Name = node.SelectSingleNode("h3").InnerText;
+                searchResult.Path = searchResult.Link.Replace("/anime/stream", "").Replace("/serie/stream", "");
+                searchResult.StreamingPortal = StreamingPortal;
+
+                html = await HttpClient.GetStringAsync($"{BaseUrl}{searchResult.Link}");
+
+                HtmlDocument docSeries = new();
+                docSeries.LoadHtml(html);
+
+                if (StreamingPortal == StreamingPortal.STO)
+                {
+                    TMDBSearchTVByIdModel? tmdbSearchTV = await GetTMDBSearchTV(searchResult.Name);
+
+                    if (tmdbSearchTV is not null && !string.IsNullOrEmpty(tmdbSearchTV.PosterPath))
+                    {
+                        searchResult.CoverArtUrl = $"https://image.tmdb.org/t/p/w300/{tmdbSearchTV.PosterPath}";
+                    }
+                    else
+                    {
+                        string? coverArtUrl = GetCoverArtUrl(doc);
+
+                        searchResult.CoverArtUrl = await GetCoverArtBase64(coverArtUrl);
+                    }
+                }
+                else if (StreamingPortal == StreamingPortal.AniWorld)
+                {
+                    AniListSearchMediaResponseModel? aniListSearchMediaResponse = await GetAniListSearchMediaResponse(searchResult.Name);
+
+                    Medium? medium = GetAniListSearchMedia(searchResult.Name, aniListSearchMediaResponse);
+
+                    if (medium is not null)
+                    {
+                        searchResult.CoverArtUrl = medium.CoverImage?.Large;
+                    }
+                    else
+                    {
+                        string? coverArtUrl = GetCoverArtUrl(doc);
+
+                        searchResult.CoverArtUrl = await GetCoverArtBase64(coverArtUrl);
+                    }
+                }
+
+                popularSeries.Add(searchResult);
+            }
+
+            return popularSeries;
+        }
+
         public async Task<List<SearchResultModel>?> GetMediaAsync(string seriesName, bool strictSearch = false)
         {
             (bool reachable, string? html) = await StreamingPortalHelper.GetHosterReachableAsync(this);
@@ -541,9 +632,9 @@ namespace AniWorldReminder_API.Services
                 aniListSearchMedia.Data.Page.Media.Count == 0)
                 return default;
 
-            Medium? medium = aniListSearchMedia.Data.Page.Media.FirstOrDefault(_ => _.Title is not null &&                  
-                    (( !string.IsNullOrEmpty(_.Title.UserPreferred) && _.Title.UserPreferred.Contains(mediaName)) ||
-                    ( !string.IsNullOrEmpty(_.Title.English) && _.Title.English.Contains(mediaName))));
+            Medium? medium = aniListSearchMedia.Data.Page.Media.FirstOrDefault(_ => _.Title is not null &&
+                    ( ( !string.IsNullOrEmpty(_.Title.UserPreferred) && _.Title.UserPreferred.Contains(mediaName) ) ||
+                    ( !string.IsNullOrEmpty(_.Title.English) && _.Title.English.Contains(mediaName) ) ));
 
             if (medium is null)
             {
