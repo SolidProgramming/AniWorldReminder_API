@@ -82,7 +82,7 @@ namespace AniWorldReminder_API.Services
                 if (!searchResult.Link.StartsWith("/anime/stream") && !searchResult.Link.StartsWith("/serie/stream"))
                     continue;
 
-                searchResult.Name = node.SelectSingleNode("h3").InnerText;
+                searchResult.Name = node.SelectSingleNode("h3").InnerText.HtmlDecode();
                 searchResult.Path = searchResult.Link.Replace("/anime/stream", "").Replace("/serie/stream", "");
                 searchResult.StreamingPortal = StreamingPortal;
 
