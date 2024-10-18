@@ -126,7 +126,7 @@ namespace AniWorldReminder_API
             app.UseAuthentication();
             app.UseAuthorization();
 
-            app.MapGet("/getSeries", [Authorize] async (string seriesName, MediaType mediaType) =>
+            app.MapGet("/getSeries", [AllowAnonymous] async (string seriesName, MediaType mediaType) =>
             {
                 List<SearchResultModel> allSearchResults = [];
 
@@ -158,7 +158,7 @@ namespace AniWorldReminder_API
 
             }).WithOpenApi();
 
-            app.MapGet("/getSeriesInfo", [Authorize] async (IDistributedCache cache, string seriesPath, string hoster) =>
+            app.MapGet("/getSeriesInfo", [AllowAnonymous] async (IDistributedCache cache, string seriesPath, string hoster) =>
             {
                 StreamingPortal streamingPortal = StreamingPortalHelper.GetStreamingPortalByName(hoster);
 
@@ -418,7 +418,7 @@ namespace AniWorldReminder_API
                 return Results.Ok();
             }).WithOpenApi();
 
-            app.MapGet("/getSeasonEpisodesLinks", [Authorize] async (string seriesPath, string streamingPortal, [FromBody] SeasonModel seasonRequest, IDistributedCache cache) =>
+            app.MapGet("/getSeasonEpisodesLinks", [AllowAnonymous] async (string seriesPath, string streamingPortal, [FromBody] SeasonModel seasonRequest, IDistributedCache cache) =>
             {
                 string cachePath = $"{seriesPath}@{streamingPortal}:{seasonRequest.Id}";
                 var cachedEpisodeLinks = await cache.GetAsync(cachePath);
@@ -458,7 +458,7 @@ namespace AniWorldReminder_API
                 return Results.Ok(downloads);
             }).WithOpenApi();
 
-            app.MapPost("/removeFinishedDownload", async (HttpContext httpContext, [FromBody] EpisodeDownloadModel episode) =>
+            app.MapPost("/removeFinishedDownload", [AllowAnonymous] async (HttpContext httpContext, [FromBody] EpisodeDownloadModel episode) =>
             {
                 string? apiKey = httpContext.Request.Headers["X-API-KEY"];
 

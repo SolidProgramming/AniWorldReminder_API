@@ -78,7 +78,7 @@ namespace AniWorldReminder_API.Services
 
                 SearchResultModel searchResult = new()
                 {
-                    Title = title.HtmlDecode(),
+                    Name = title.HtmlDecode(),
                     StreamingPortal = StreamingPortal,
                     CoverArtUrl = GetCoverArtUrl(doc, i),
                     Link = baseNode.Attributes["href"].Value,

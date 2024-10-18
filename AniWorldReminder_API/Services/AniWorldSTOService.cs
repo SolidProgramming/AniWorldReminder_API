@@ -85,7 +85,7 @@ namespace AniWorldReminder_API.Services
 
                 if (strictSearch)
                 {
-                    filteredSearchResults = filteredSearchResults.Where(_ => _.Title.HtmlDecode() == seriesName).ToList();
+                    filteredSearchResults = filteredSearchResults.Where(_ => _.Name.HtmlDecode() == seriesName).ToList();
                 }
 
                 if (filteredSearchResults.Count == 0)
@@ -98,7 +98,7 @@ namespace AniWorldReminder_API.Services
                     if (string.IsNullOrEmpty(result.Link))
                         continue;
 
-                    result.Title = result.Title.HtmlDecode();
+                    result.Name = result.Name.HtmlDecode();
                     result.Description = result.Description.HtmlDecode().HtmlDecode();
                     result.StreamingPortal = StreamingPortal;
                     result.Path = result.Link.Replace("/anime/stream", "").Replace("/serie/stream", "");
@@ -108,7 +108,7 @@ namespace AniWorldReminder_API.Services
 
                     if (StreamingPortal == StreamingPortal.STO)
                     {
-                        TMDBSearchTVByIdModel? tmdbSearchTV = await GetTMDBSearchTV(result.Title);
+                        TMDBSearchTVByIdModel? tmdbSearchTV = await GetTMDBSearchTV(result.Name);
 
                         if (tmdbSearchTV is not null && !string.IsNullOrEmpty(tmdbSearchTV.PosterPath))
                         {
@@ -123,9 +123,9 @@ namespace AniWorldReminder_API.Services
                     }
                     else if (StreamingPortal == StreamingPortal.AniWorld)
                     {
-                        AniListSearchMediaResponseModel? aniListSearchMediaResponse = await GetAniListSearchMediaResponse(result.Title);
+                        AniListSearchMediaResponseModel? aniListSearchMediaResponse = await GetAniListSearchMediaResponse(result.Name);
 
-                        Medium? medium = GetAniListSearchMedia(result.Title, aniListSearchMediaResponse);
+                        Medium? medium = GetAniListSearchMedia(result.Name, aniListSearchMediaResponse);
 
                         if (medium is not null)
                         {
