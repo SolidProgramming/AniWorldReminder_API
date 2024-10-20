@@ -104,11 +104,11 @@ namespace AniWorldReminder_API
 
             IStreamingPortalServiceFactory streamingPortalServiceFactory = app.Services.GetRequiredService<IStreamingPortalServiceFactory>();
 
-            IStreamingPortalService aniWordService = streamingPortalServiceFactory.GetService(StreamingPortal.AniWorld);
+            IStreamingPortalService aniWorldService = streamingPortalServiceFactory.GetService(StreamingPortal.AniWorld);
             IStreamingPortalService sTOService = streamingPortalServiceFactory.GetService(StreamingPortal.STO);
             IStreamingPortalService megaKinoService = streamingPortalServiceFactory.GetService(StreamingPortal.MegaKino);
 
-            if (!await aniWordService.InitAsync(proxy))
+            if (!await aniWorldService.InitAsync(proxy))
                 return;
 
             if (!await sTOService.InitAsync(proxy))
@@ -143,7 +143,7 @@ namespace AniWorldReminder_API
                 {
                     List<Task<List<SearchResultModel>?>> tasks = [];
 
-                    tasks.Add(aniWordService.GetMediaAsync(seriesName));
+                    tasks.Add(aniWorldService.GetMediaAsync(seriesName));
                     tasks.Add(sTOService.GetMediaAsync(seriesName));
 
                     List<SearchResultModel>?[] taskResults = await Task.WhenAll(tasks);
@@ -174,7 +174,7 @@ namespace AniWorldReminder_API
                 switch (streamingPortal)
                 {
                     case StreamingPortal.AniWorld:
-                        seriesInfo = await aniWordService.GetMediaInfoAsync(seriesPath);
+                        seriesInfo = await aniWorldService.GetMediaInfoAsync(seriesPath);
                         break;
                     case StreamingPortal.STO:
                         seriesInfo = await sTOService.GetMediaInfoAsync(seriesPath);
@@ -208,7 +208,7 @@ namespace AniWorldReminder_API
 
                 List<Task<List<SearchResultModel>?>> tasks = [];
 
-                tasks.Add(aniWordService.GetPopularAsync());
+                tasks.Add(aniWorldService.GetPopularAsync());
                 tasks.Add(sTOService.GetPopularAsync());
 
                 List<SearchResultModel>?[] taskResults = await Task.WhenAll(tasks);
@@ -331,7 +331,7 @@ namespace AniWorldReminder_API
                         case StreamingPortal.Undefined:
                             return Results.BadRequest();
                         case StreamingPortal.AniWorld:
-                            await dbService.InsertSeries(addReminderRequest.SeriesPath, aniWordService);
+                            await dbService.InsertSeries(addReminderRequest.SeriesPath, aniWorldService);
                             break;
                         case StreamingPortal.STO:
                             await dbService.InsertSeries(addReminderRequest.SeriesPath, sTOService);
@@ -468,7 +468,7 @@ namespace AniWorldReminder_API
                 }
                 else if (streamingPortal.ToLower() == StreamingPortal.AniWorld.ToString().ToLower())
                 {
-                    seasonData = await aniWordService.GetSeasonEpisodesLinksAsync(seriesPath, seasonRequest);
+                    seasonData = await aniWorldService.GetSeasonEpisodesLinksAsync(seriesPath, seasonRequest);
                 }
 
                 await cache.SetAsync(cachePath, Encoding.UTF8.GetBytes(JsonSerializer.Serialize(seasonData)), new()
