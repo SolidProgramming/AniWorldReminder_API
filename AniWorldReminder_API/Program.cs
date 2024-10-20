@@ -13,7 +13,6 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
-using Org.BouncyCastle.Tls;
 
 namespace AniWorldReminder_API
 {
@@ -61,6 +60,7 @@ namespace AniWorldReminder_API
             builder.Services.AddSingleton<Interfaces.IHttpClientFactory, HttpClientFactory>();
             builder.Services.AddSingleton<ITelegramBotService, TelegramBotService>();
             builder.Services.AddSingleton<ITMDBService, TMDBService>();
+            builder.Services.AddSingleton<ICacheHelperService, CacheHelperService>();
 
             builder.Services.AddSingleton<IStreamingPortalServiceFactory>(_ =>
             {
@@ -117,6 +117,8 @@ namespace AniWorldReminder_API
             if (!await megaKinoService.InitAsync(proxy))
                 return;
 
+            await InitPopularSeriesCache();
+
             if (appSettings is not null && appSettings.AddSwagger)
             {
                 app.UseSwagger();
@@ -127,13 +129,42 @@ namespace AniWorldReminder_API
             app.UseAuthentication();
             app.UseAuthorization();
 
+            async Task InitPopularSeriesCache()
+            {
+                app.Logger.LogInformation($"{DateTime.Now} | Fetching cache data of popular series...");
+
+                ICacheHelperService cacheHelperService = app.Services.GetRequiredService<ICacheHelperService>();
+
+                List<Task<List<SearchResultModel>?>> tasks = [];
+
+                tasks.Add(aniWorldService.GetPopularAsync());
+                tasks.Add(sTOService.GetPopularAsync());
+
+                List<SearchResultModel>?[] taskResults = await Task.WhenAll(tasks);
+                List<SearchResultModel> allPopularSeries = [];
+
+                foreach (List<SearchResultModel>? popularSeries in taskResults)
+                {
+                    if (popularSeries.HasItems())
+                        allPopularSeries.AddRange(popularSeries!);
+                }
+
+                if (!allPopularSeries.HasItems())
+                    return;
+
+                allPopularSeries.Shuffle();
+
+                //set cache expiration at 12 hours
+                await cacheHelperService.SetCacheAsync(Global.Cache.Path.PopularSeries, allPopularSeries, 12 * 60);
+            }
+
             app.MapGet("/getSeries", [AllowAnonymous] async (string seriesName, MediaType mediaType) =>
             {
                 List<SearchResultModel> allSearchResults = [];
 
                 if (mediaType.HasFlag(MediaType.Films))
                 {
-                   List<SearchResultModel>? searchResultsMegaKino = await megaKinoService.GetMediaAsync(seriesName);
+                    List<SearchResultModel>? searchResultsMegaKino = await megaKinoService.GetMediaAsync(seriesName);
 
                     if (searchResultsMegaKino.HasItems())
                         allSearchResults.AddRange(searchResultsMegaKino!);
@@ -159,17 +190,17 @@ namespace AniWorldReminder_API
 
             }).WithOpenApi();
 
-            app.MapGet("/getSeriesInfo", [AllowAnonymous] async (IDistributedCache cache, string seriesPath, string hoster) =>
+            app.MapGet("/getSeriesInfo", [AllowAnonymous] async (ICacheHelperService cacheHelper, string seriesPath, string hoster) =>
             {
                 StreamingPortal streamingPortal = StreamingPortalHelper.GetStreamingPortalByName(hoster);
 
-                SeriesInfoModel? seriesInfo = default;
+                SeriesInfoModel? seriesInfo;
 
                 string cachePath = $"{seriesPath}@{hoster}";
-                var cachedSeriesInfo = await cache.GetAsync(cachePath);
+                SeriesInfoModel? cachedSeriesInfo = await cacheHelper.GetCacheAsync<SeriesInfoModel>(cachePath);
 
                 if (cachedSeriesInfo is not null)
-                    return Results.Ok(JsonSerializer.Deserialize<SeriesInfoModel>(cachedSeriesInfo));
+                    return Results.Ok(cachedSeriesInfo);
 
                 switch (streamingPortal)
                 {
@@ -188,23 +219,21 @@ namespace AniWorldReminder_API
                         return Results.BadRequest();
                 }
 
-                await cache.SetAsync(cachePath, Encoding.UTF8.GetBytes(JsonSerializer.Serialize(seriesInfo)), new DistributedCacheEntryOptions()
-                {
-                    SlidingExpiration = TimeSpan.FromMinutes(180)
-                });
+                if (seriesInfo is null)
+                    return Results.NotFound();
+
+                await cacheHelper.SetCacheAsync(cachePath, seriesInfo, 180);
 
                 return Results.Ok(seriesInfo);
 
             }).WithOpenApi();
 
-            app.MapGet("/getPopular", [AllowAnonymous] async (IDistributedCache cache) =>
+            app.MapGet("/getPopular", [AllowAnonymous] async (ICacheHelperService cacheHelper) =>
             {
-                string cachePath = "popularAtHosters";
-
-                var cachedPopularSeries = await cache.GetAsync(cachePath);
+                List<SearchResultModel>? cachedPopularSeries = await cacheHelper.GetCacheAsync<List<SearchResultModel>>(Global.Cache.Path.PopularSeries);
 
                 if (cachedPopularSeries is not null)
-                    return Results.Ok(JsonSerializer.Deserialize<List<SearchResultModel>?>(cachedPopularSeries));
+                    return Results.Ok(cachedPopularSeries);
 
                 List<Task<List<SearchResultModel>?>> tasks = [];
 
@@ -220,12 +249,12 @@ namespace AniWorldReminder_API
                         allPopularSeries.AddRange(popularSeries!);
                 }
 
-                await cache.SetAsync(cachePath, Encoding.UTF8.GetBytes(JsonSerializer.Serialize(allPopularSeries)), new DistributedCacheEntryOptions()
-                {
-                    SlidingExpiration = TimeSpan.FromHours(12)
-                });
+                if (!allPopularSeries.HasItems())
+                    return Results.NotFound();
 
                 allPopularSeries.Shuffle();
+
+                await cacheHelper.SetCacheAsync(Global.Cache.Path.PopularSeries, allPopularSeries, 12 * 60);
 
                 return Results.Ok(allPopularSeries);
             });
