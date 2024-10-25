@@ -46,7 +46,7 @@ namespace AniWorldReminder_API.Services
                 new Claim("UserId", user.Id.ToString())
             ];
 
-            JwtSecurityToken? token = new(jwtSettings.Issuer, jwtSettings.Issuer, claims, expires: DateTime.Now.AddDays(1), signingCredentials: credentials);
+            JwtSecurityToken? token = new(jwtSettings.Issuer, jwtSettings.Issuer, claims, expires: DateTime.Now.AddDays(5), signingCredentials: credentials);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
