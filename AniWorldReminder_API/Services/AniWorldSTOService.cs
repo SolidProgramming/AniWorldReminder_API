@@ -97,7 +97,7 @@ namespace AniWorldReminder_API.Services
 
                     if (tmdbSearchTV is not null && !string.IsNullOrEmpty(tmdbSearchTV.PosterPath))
                     {
-                        searchResult.CoverArtUrl = $"https://image.tmdb.org/t/p/w300/{tmdbSearchTV.PosterPath}";
+                        searchResult.CoverArtUrl = $"https://image.tmdb.org/t/p/w300{tmdbSearchTV.PosterPath}";
                     }
                     else
                     {
@@ -203,7 +203,7 @@ namespace AniWorldReminder_API.Services
 
                         if (tmdbSearchTV is not null && !string.IsNullOrEmpty(tmdbSearchTV.PosterPath))
                         {
-                            result.CoverArtUrl = $"https://image.tmdb.org/t/p/w300/{tmdbSearchTV.PosterPath}";
+                            result.CoverArtUrl = $"https://image.tmdb.org/t/p/w300{tmdbSearchTV.PosterPath}";
                         }
                         else
                         {
@@ -305,7 +305,7 @@ namespace AniWorldReminder_API.Services
 
                 if (seriesInfo.TMDBSearchTVById is not null && !string.IsNullOrEmpty(seriesInfo.TMDBSearchTVById.PosterPath))
                 {
-                    seriesInfo.CoverArtUrl = $"https://image.tmdb.org/t/p/w300/{seriesInfo.TMDBSearchTVById.PosterPath}";
+                    seriesInfo.CoverArtUrl = $"https://image.tmdb.org/t/p/w300{seriesInfo.TMDBSearchTVById.PosterPath}";
                 }
                 else
                 {
