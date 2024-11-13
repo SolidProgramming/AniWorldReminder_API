@@ -101,7 +101,7 @@ namespace AniWorldReminder_API.Services
                     }
                     else
                     {
-                        string? coverArtUrl = GetCoverArtUrl(doc);
+                        string? coverArtUrl = GetCoverArtUrl(docSeries);
 
                         searchResult.CoverArtUrl = await GetCoverArtBase64(coverArtUrl);
                     }
@@ -118,7 +118,7 @@ namespace AniWorldReminder_API.Services
                     }
                     else
                     {
-                        string? coverArtUrl = GetCoverArtUrl(doc);
+                        string? coverArtUrl = GetCoverArtUrl(docSeries);
 
                         searchResult.CoverArtUrl = await GetCoverArtBase64(coverArtUrl);
                     }
