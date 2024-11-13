@@ -493,7 +493,7 @@ namespace AniWorldReminder_API.Services
 
                 episodes.Add(new EpisodeModel()
                 {
-                    Name = episodeName,
+                    Name = episodeName.HtmlDecode(),
                     Episode = i,
                     Season = season,
                     Languages = GetEpisodeLanguages(i, html)
