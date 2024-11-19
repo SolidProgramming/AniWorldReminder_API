@@ -1,7 +1,7 @@
-﻿using System.Net;
-using System.Text.RegularExpressions;
+﻿using HtmlAgilityPack;
+using System.Net;
 using System.Text;
-using HtmlAgilityPack;
+using System.Text.RegularExpressions;
 
 namespace AniWorldReminder_API.Services
 {
@@ -656,7 +656,7 @@ namespace AniWorldReminder_API.Services
 
             List<HtmlNode> languageRedirectNodes = new HtmlNodeQueryBuilder()
                 .Query(document)
-                    .GetNodesByQuery("//div/a/i[@title='Hoster VOE']");
+                    .GetNodesByQuery("//div/a/i[contains(@title, 'Hoster')]");
 
             if (languageRedirectNodes == null || languageRedirectNodes.Count == 0)
                 return null;
