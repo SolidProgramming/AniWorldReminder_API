@@ -30,5 +30,7 @@
         Task SetDownloaderPreferences(string apiKey, DownloaderPreferencesModel downloaderPreferences);
         Task<DownloaderPreferencesModel?> GetDownloaderPreferences(string apiKey);
         Task InsertMovieDownloadAsync(AddMovieDownloadRequestModel download);
+        Task<string?> CreateWatchlist(string watchlistName, string userId, List<SeriesModel> watchlist);
+        Task<List<WatchlistModel>?> GetUserWatchlists(string userId);
     }
 }

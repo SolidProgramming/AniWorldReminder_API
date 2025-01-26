@@ -1,17 +1,17 @@
-global using AniWorldReminder_API.Models;
 global using AniWorldReminder_API.Classes;
-global using AniWorldReminder_API.Interfaces;
 global using AniWorldReminder_API.Enums;
-global using AniWorldReminder_API.Misc;
 global using AniWorldReminder_API.Factories;
+global using AniWorldReminder_API.Interfaces;
+global using AniWorldReminder_API.Misc;
+global using AniWorldReminder_API.Models;
 global using AniWorldReminder_API.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.IdentityModel.Tokens;
 using System.Net;
 using System.Text;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Caching.Distributed;
 using System.Text.Json;
 
 namespace AniWorldReminder_API
@@ -484,7 +484,7 @@ namespace AniWorldReminder_API
             app.MapGet("/getSeasonEpisodesLinks", [AllowAnonymous] async (string seriesPath, string streamingPortal, [FromBody] SeasonModel seasonRequest, IDistributedCache cache) =>
             {
                 string cachePath = $"{seriesPath}@{streamingPortal}:{seasonRequest.Id}";
-                var cachedEpisodeLinks = await cache.GetAsync(cachePath);
+                byte[]? cachedEpisodeLinks = await cache.GetAsync(cachePath);
 
                 if (cachedEpisodeLinks is not null)
                     return Results.Ok(JsonSerializer.Deserialize<SeasonModel>(cachedEpisodeLinks));
@@ -634,6 +634,37 @@ namespace AniWorldReminder_API
                 await dbService.InsertMovieDownloadAsync(download);
 
                 return Results.Ok();
+            }).WithOpenApi();
+
+            app.MapPost("/createWatchlist", [Authorize] async (HttpContext httpContext, string watchlistName, [FromBody] List<SeriesModel> watchlist) =>
+            {
+                string? userId = httpContext.GetClaim(CustomClaimType.UserId);
+
+                if (string.IsNullOrEmpty(userId))
+                    return Results.Unauthorized();
+
+                string? watchlistIdent = await dbService.CreateWatchlist(watchlistName, userId, watchlist);
+
+                if (string.IsNullOrEmpty(watchlistIdent))
+                    return Results.InternalServerError();
+
+                return Results.Ok(watchlistIdent);
+            }).WithOpenApi();
+
+            app.MapGet("/getUserWatchlists", [Authorize] async (HttpContext httpContext) =>
+            {
+                string? userId = httpContext.GetClaim(CustomClaimType.UserId);
+
+                if (string.IsNullOrEmpty(userId))
+                    return Results.Unauthorized();
+
+
+                List<WatchlistModel>? watchlists = await dbService.GetUserWatchlists(userId);
+
+                if (watchlists is null)
+                    return Results.InternalServerError();
+
+                return Results.Ok(watchlists);
             }).WithOpenApi();
 
             app.Run();

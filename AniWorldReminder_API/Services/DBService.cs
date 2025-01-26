@@ -724,5 +724,106 @@ namespace AniWorldReminder_API.Services
 
             await connection.ExecuteAsync(query, parameters);
         }
+        public async Task<string?> CreateWatchlist(string watchlistName, string userId, List<SeriesModel> watchlist)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "INSERT INTO watchlists (Name, Ident) VALUES (@Name, @Ident);";
+
+            string watchlistIdent = Guid.NewGuid().ToString();
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@Name", watchlistName },
+                { "@Ident", watchlistIdent }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            try
+            {
+                await connection.ExecuteAsync(query, parameters);
+            }
+            catch (Exception)
+            {
+                return default;
+            }
+
+            query = "SELECT id FROM watchlists WHERE Ident = @Ident;";
+
+            string? watchlistId;
+
+            try
+            {
+                watchlistId = await connection.ExecuteScalarAsync<string>(query, parameters);
+
+                if (string.IsNullOrEmpty(watchlistId))
+                    return default;
+            }
+            catch (Exception)
+            {
+                return default;
+            }
+
+            foreach (SeriesModel series in watchlist)
+            {
+                dictionary.Clear();
+
+                dictionary.Add("@WatchlistId", watchlistId);
+                dictionary.Add("@SeriesId", series.Id);
+
+                parameters = new(dictionary);
+
+                query = "INSERT INTO watchlists_series (WatchlistId, SeriesId) VALUES (@WatchlistId, @SeriesId);";
+
+                await connection.ExecuteAsync(query, parameters);
+            }
+
+            query = "INSERT INTO users_watchlists (UserId, WatchlistId) VALUES (@UserId, @WatchlistId);";
+
+            dictionary.Clear();
+
+            dictionary.Add("@UserId", userId);
+            dictionary.Add("@WatchlistId", watchlistId);
+
+            parameters = new(dictionary);
+
+            await connection.ExecuteAsync(query, parameters);
+
+            return watchlistIdent;
+        }
+
+        public async Task<List<WatchlistModel>?> GetUserWatchlists(string userId)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "SELECT series.*, watchlists.* FROM users_watchlists " +
+                "JOIN watchlists ON users_watchlists.WatchlistId = watchlists.id " +
+                "JOIN watchlists_series ON users_watchlists.WatchlistId = watchlists_series.WatchlistId " +
+                "JOIN series ON watchlists_series.SeriesId = series.id " +
+                "JOIN users ON users_watchlists.UserId = users.id " +
+                "WHERE users.id = @UserId";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@UserId", userId }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            List<WatchlistModel> watchlists = [];
+
+            await connection.QueryAsync<SeriesModel, WatchlistModel, WatchlistModel>
+              (query, (series, watchlist) =>
+              {
+                  watchlist.Series = series;
+                  watchlists.Add(watchlist);
+
+                  return watchlist;
+              }, parameters);
+
+
+            return watchlists;
+        }
     }
 }
