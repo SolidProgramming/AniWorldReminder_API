@@ -816,8 +816,20 @@ namespace AniWorldReminder_API.Services
             await connection.QueryAsync<SeriesModel, WatchlistModel, WatchlistModel>
               (query, (series, watchlist) =>
               {
-                  watchlist.Series = series;
-                  watchlists.Add(watchlist);
+                  if (watchlists.Any(_ => _.Ident == watchlist.Ident))
+                  {
+                      WatchlistModel? existingWatchlist = watchlists.SingleOrDefault(_ => _.Ident == watchlist.Ident);
+
+                      if (existingWatchlist is not null)
+                      {
+                          existingWatchlist.Series.Add(series);
+                      }
+                  }
+                  else
+                  {
+                      watchlist.Series.Add(series);
+                      watchlists.Add(watchlist);
+                  }
 
                   return watchlist;
               }, parameters);
