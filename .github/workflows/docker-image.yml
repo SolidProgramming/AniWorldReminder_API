@@ -12,7 +12,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v2
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: '9.x'
+        
     - name: Build the Docker image
-      working-directory: ./AniWorldReminder_API
-      run: docker build . --file Dockerfile
+      working-directory: path
+      run: docker build .
