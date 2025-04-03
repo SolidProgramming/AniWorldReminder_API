@@ -15,7 +15,7 @@ namespace AniWorldReminder_API.Services
         {
             TelegramBotSettingsModel? settings = SettingsHelper.ReadSettings<TelegramBotSettingsModel>();
 
-            if (settings is null)
+            if(settings is null)
             {
                 logger.LogError($"{DateTime.Now} | {ErrorMessage.ReadSettings}");
                 return false;
@@ -25,15 +25,15 @@ namespace AniWorldReminder_API.Services
 
             try
             {
-                User? bot_me = await BotClient.GetMeAsync();
+                User? bot_me = await BotClient.GetMe();
 
-                if (bot_me is null)
+                if(bot_me is null)
                 {
                     logger.LogError($"{DateTime.Now} | {ErrorMessage.RetrieveBotInfo}");
                     return false;
                 }
             }
-            catch (Exception ex)
+            catch(Exception ex)
             {
                 logger.LogError($"{DateTime.Now} | {ex}");
                 return false;
@@ -46,24 +46,19 @@ namespace AniWorldReminder_API.Services
 
             return true;
         }
-        public async Task SendChatAction(long chatId, ChatAction chatAction)
-        {
-            await BotClient.SendChatActionAsync(chatId, chatAction);
-        }
-        public async Task<Message?> SendMessageAsync(long chatId, string text, int? replyId = null, bool showLinkPreview = true, ParseMode parseMode = ParseMode.Html, bool silentMessage = false, ReplyKeyboardMarkup? rkm = null)
+        public async Task<Message?> SendMessageAsync(long chatId, string text, bool showLinkPreview = true, ParseMode parseMode = ParseMode.Html, bool silentMessage = false, ReplyKeyboardMarkup? rkm = null)
         {
             try
             {
-                return await BotClient.SendTextMessageAsync(
+                return await BotClient.SendMessage(
                     chatId: chatId,
                     text: text.HtmlDecode(),
-                    replyToMessageId: replyId,
                     parseMode: parseMode,
-                    disableWebPagePreview: !showLinkPreview,
+                    linkPreviewOptions: new() { IsDisabled = !showLinkPreview },
                     replyMarkup: rkm,
                     disableNotification: silentMessage);
             }
-            catch (Exception)
+            catch(Exception)
             {
                 return null;
             }
@@ -73,12 +68,12 @@ namespace AniWorldReminder_API.Services
             const string base64Prefix = "data:image/png;base64,";
 
             try
-            {               
-                if (photoUrl.Trim().StartsWith(base64Prefix))
+            {
+                if(photoUrl.Trim().StartsWith(base64Prefix))
                 {
                     photoUrl = photoUrl.Replace(base64Prefix, "");
 
-                    return await BotClient.SendPhotoAsync(
+                    return await BotClient.SendPhoto(
                                chatId,
                          new InputFileStream(new MemoryStream(Convert.FromBase64String(photoUrl))),
                                caption: text.HtmlDecode(),
@@ -87,7 +82,7 @@ namespace AniWorldReminder_API.Services
                 }
                 else
                 {
-                    return await BotClient.SendPhotoAsync(
+                    return await BotClient.SendPhoto(
                                chatId,
                          new InputFileUrl(photoUrl),
                                caption: text.HtmlDecode(),
@@ -95,7 +90,7 @@ namespace AniWorldReminder_API.Services
                                disableNotification: silentMessage);
                 }
             }
-            catch (Exception)
+            catch(Exception)
             {
                 return await SendMessageAsync(chatId, text, parseMode: parseMode);
             }

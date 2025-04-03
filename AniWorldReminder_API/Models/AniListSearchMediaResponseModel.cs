@@ -1,143 +1,143 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text.Json.Serialization;
 
 namespace AniWorldReminder_API.Models
 {
     // Root myDeserializedClass = JsonConvert.DeserializeObject<Root>(myJsonResponse);
     public class CoverImage
     {
-        [JsonProperty("large")]
+        [JsonPropertyName("large")]
         public string? Large { get; set; }
 
-        [JsonProperty("medium")]
+        [JsonPropertyName("medium")]
         public string? Medium { get; set; }
 
-        [JsonProperty("color")]
+        [JsonPropertyName("color")]
         public string? Color { get; set; }
     }
 
     public class Data
     {
-        [JsonProperty("Page")]
+        [JsonPropertyName("Page")]
         public Page? Page { get; set; }
     }
 
     public class EndDate
     {
-        [JsonProperty("year")]
+        [JsonPropertyName("year")]
         public int? Year { get; set; }
 
-        [JsonProperty("month")]
+        [JsonPropertyName("month")]
         public int? Month { get; set; }
 
-        [JsonProperty("day")]
+        [JsonPropertyName("day")]
         public int? Day { get; set; }
     }
 
     public class Medium
     {
-        [JsonProperty("id")]
+        [JsonPropertyName("id")]
         public int? Id { get; set; }
 
-        [JsonProperty("title")]
+        [JsonPropertyName("title")]
         public Title? Title { get; set; }
 
-        [JsonProperty("coverImage")]
+        [JsonPropertyName("coverImage")]
         public CoverImage? CoverImage { get; set; }
 
-        [JsonProperty("startDate")]
+        [JsonPropertyName("startDate")]
         public StartDate? StartDate { get; set; }
 
-        [JsonProperty("endDate")]
+        [JsonPropertyName("endDate")]
         public EndDate? EndDate { get; set; }
 
-        [JsonProperty("season")]
+        [JsonPropertyName("season")]
         public string? Season { get; set; }
 
-        [JsonProperty("seasonYear")]
+        [JsonPropertyName("seasonYear")]
         public int? SeasonYear { get; set; }
 
-        [JsonProperty("description")]
+        [JsonPropertyName("description")]
         public string? Description { get; set; }
 
-        [JsonProperty("type")]
+        [JsonPropertyName("type")]
         public string? Type { get; set; }
 
-        [JsonProperty("format")]
+        [JsonPropertyName("format")]
         public string? Format { get; set; }
 
-        [JsonProperty("status")]
+        [JsonPropertyName("status")]
         public string? Status { get; set; }
 
-        [JsonProperty("episodes")]
+        [JsonPropertyName("episodes")]
         public int? Episodes { get; set; }
 
-        [JsonProperty("duration")]
+        [JsonPropertyName("duration")]
         public int? Duration { get; set; }
 
-        [JsonProperty("genres")]
+        [JsonPropertyName("genres")]
         public List<string>? Genres { get; set; }
 
-        [JsonProperty("isAdult")]
+        [JsonPropertyName("isAdult")]
         public bool? IsAdult { get; set; }
 
-        [JsonProperty("averageScore")]
+        [JsonPropertyName("averageScore")]
         public decimal? AverageScore { get; set; }
 
-        [JsonProperty("nextAiringEpisode")]
+        [JsonPropertyName("nextAiringEpisode")]
         public object? NextAiringEpisode { get; set; }
     }
 
     public class Page
     {
-        [JsonProperty("pageInfo")]
+        [JsonPropertyName("pageInfo")]
         public PageInfo? PageInfo { get; set; }
 
-        [JsonProperty("media")]
+        [JsonPropertyName("media")]
         public List<Medium>? Media { get; set; }
     }
 
     public class PageInfo
     {
-        [JsonProperty("total")]
+        [JsonPropertyName("total")]
         public int? Total { get; set; }
 
-        [JsonProperty("perPage")]
+        [JsonPropertyName("perPage")]
         public int? PerPage { get; set; }
 
-        [JsonProperty("currentPage")]
+        [JsonPropertyName("currentPage")]
         public int? CurrentPage { get; set; }
 
-        [JsonProperty("lastPage")]
+        [JsonPropertyName("lastPage")]
         public int? LastPage { get; set; }
 
-        [JsonProperty("hasNextPage")]
+        [JsonPropertyName("hasNextPage")]
         public bool? HasNextPage { get; set; }
     }
 
     public class AniListSearchMediaResponseModel
     {
-        [JsonProperty("data")]
+        [JsonPropertyName("data")]
         public Data? Data { get; set; }
     }
 
     public class StartDate
     {
-        [JsonProperty("year")]
+        [JsonPropertyName("year")]
         public int? Year { get; set; }
 
-        [JsonProperty("month")]
+        [JsonPropertyName("month")]
         public int? Month { get; set; }
 
-        [JsonProperty("day")]
+        [JsonPropertyName("day")]
         public int? Day { get; set; }
     }
 
     public class Title
     {
-        [JsonProperty("english")]
+        [JsonPropertyName("english")]
         public string? English { get; set; }
 
-        [JsonProperty("userPreferred")]
+        [JsonPropertyName("userPreferred")]
         public string? UserPreferred { get; set; }
     }
 
