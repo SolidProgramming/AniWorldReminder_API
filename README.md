@@ -1,1 +1,2 @@
 [![Dependabot Updates](https://github.com/SolidProgramming/AniWorldReminder_API/actions/workflows/dependabot/dependabot-updates/badge.svg?branch=master)](https://github.com/SolidProgramming/AniWorldReminder_API/actions/workflows/dependabot/dependabot-updates)
+[![.NET](https://github.com/SolidProgramming/AniWorldReminder_API/actions/workflows/dotnet.yml/badge.svg?branch=master)](https://github.com/SolidProgramming/AniWorldReminder_API/actions/workflows/dotnet.yml)
