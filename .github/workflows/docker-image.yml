@@ -21,5 +21,4 @@ jobs:
         dotnet-version: '9.x'
         
     - name: Build the Docker image
-      working-directory: path
       run: docker build .
