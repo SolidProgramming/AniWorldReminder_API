@@ -20,5 +20,6 @@ jobs:
       with:
         dotnet-version: '9.x'
         
-    - name: Build the Docker image
+    - name: Build the Docker image#
+      working-directory: ./AniWorldReminder_API/
       run: docker build .
