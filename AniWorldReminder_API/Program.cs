@@ -2,9 +2,9 @@ global using AniWorldReminder_API.Classes;
 global using AniWorldReminder_API.Enums;
 global using AniWorldReminder_API.Factories;
 global using AniWorldReminder_API.Interfaces;
-global using AniWorldReminder_API.Misc;
 global using AniWorldReminder_API.Models;
 global using AniWorldReminder_API.Services;
+global using AniWorldReminder_API.Misc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -51,9 +51,7 @@ namespace AniWorldReminder_API
 
             if (appSettings is not null && appSettings.AddSwagger)
             {
-                // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-                builder.Services.AddEndpointsApiExplorer();
-                builder.Services.AddSwaggerGen();
+                builder.Services.AddOpenApi();
             }
             builder.Services.AddSingleton<IAuthService, AuthService>();
             builder.Services.AddSingleton<IDBService, DBService>();
@@ -121,8 +119,12 @@ namespace AniWorldReminder_API
 
             if (appSettings is not null && appSettings.AddSwagger)
             {
-                app.UseSwagger();
-                app.UseSwaggerUI(_ => _.EnableTryItOutByDefault());
+                app.MapOpenApi();
+                app.UseSwaggerUI(options =>
+                {
+                    options.SwaggerEndpoint("/openapi/v1.json", "AniWorldReminder API v1");
+                    options.EnableTryItOutByDefault();
+                });
             }
 
             app.UseHttpsRedirection();
@@ -188,7 +190,12 @@ namespace AniWorldReminder_API
 
                 return Results.Ok(allSearchResults);
 
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Search for series or films";
+                operation.Description = "Searches across multiple streaming portals for series or films matching the given name and media type.";
+                return Task.CompletedTask;
+            });
 
             app.MapGet("/getSeriesInfo", [AllowAnonymous] async (ICacheHelperService cacheHelper, string seriesPath, string hoster) =>
             {
@@ -226,7 +233,12 @@ namespace AniWorldReminder_API
 
                 return Results.Ok(seriesInfo);
 
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Get detailed series information";
+                operation.Description = "Retrieves detailed information about a series including seasons and episodes from the specified streaming portal. Results are cached for 180 minutes.";
+                return Task.CompletedTask;
+            });
 
             app.MapGet("/getPopular", [AllowAnonymous] async (ICacheHelperService cacheHelper) =>
             {
@@ -257,6 +269,11 @@ namespace AniWorldReminder_API
                 await cacheHelper.SetCacheAsync(Global.Cache.Path.PopularSeries, allPopularSeries, 12 * 60);
 
                 return Results.Ok(allPopularSeries);
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Get popular series";
+                operation.Description = "Returns a shuffled list of popular series from AniWorld and STO portals. Results are cached for 12 hours.";
+                return Task.CompletedTask;
             });
 
             app.MapPost("/verify", async ([FromBody] VerifyRequestModel verifyRequest) =>
@@ -308,7 +325,12 @@ namespace AniWorldReminder_API
 
                 return Results.Ok("Your Account is now verified.");
 
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Verify user account";
+                operation.Description = "Verifies a user account using a token received via Telegram. Sets up username and password for web login.";
+                return Task.CompletedTask;
+            });
 
             app.MapPost("/login", [AllowAnonymous] async (AuthUserModel authUser2) =>
             {
@@ -325,7 +347,12 @@ namespace AniWorldReminder_API
                 AuthResponseModel response = new(jwt!);
 
                 return Results.Ok(response);
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "User login";
+                operation.Description = "Authenticates a user with username and password, returning a JWT token for subsequent authorized requests.";
+                return Task.CompletedTask;
+            });
 
             app.MapGet("/getUserSeries", [Authorize] async (HttpContext httpContext, string seriesPath) =>
             {
@@ -342,7 +369,12 @@ namespace AniWorldReminder_API
                 usersSeries.Series.LanguageFlag = usersSeries.LanguageFlag;
 
                 return Results.Ok(usersSeries?.Series);
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Get user's series subscription";
+                operation.Description = "Retrieves a specific series subscription for the authenticated user including language preferences.";
+                return Task.CompletedTask;
+            });
 
             app.MapPost("/addReminder", [Authorize] async (HttpContext httpContext, AddReminderRequestModel addReminderRequest) =>
             {
@@ -407,7 +439,12 @@ namespace AniWorldReminder_API
                 {
                     return Results.BadRequest();
                 }
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Add series reminder";
+                operation.Description = "Creates a new reminder subscription for a series. Notifies the user via Telegram when new episodes are available.";
+                return Task.CompletedTask;
+            });
 
             app.MapGet("/removeReminder", [Authorize] async (HttpContext httpContext, string seriesPath) =>
             {
@@ -427,7 +464,12 @@ namespace AniWorldReminder_API
                 await telegramBotService.SendMessageAsync(long.Parse(usersSeries.Users.TelegramChatId), messageText);
 
                 return Results.Ok();
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Remove series reminder";
+                operation.Description = "Removes an existing reminder subscription for a series. Sends confirmation via Telegram.";
+                return Task.CompletedTask;
+            });
 
             app.MapGet("/getAllUserSeries", [Authorize] async (HttpContext httpContext) =>
             {
@@ -439,7 +481,12 @@ namespace AniWorldReminder_API
                 List<UsersSeriesModel>? usersSeries = await dbService.GetUsersSeriesAsync(userId);
 
                 return Results.Ok(usersSeries?.Select(_ => _.Series));
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Get all user series subscriptions";
+                operation.Description = "Retrieves all series that the authenticated user has subscribed to for reminders.";
+                return Task.CompletedTask;
+            });
 
             app.MapGet("/getUserSettings", [Authorize] async (HttpContext httpContext) =>
             {
@@ -462,7 +509,12 @@ namespace AniWorldReminder_API
                 }
 
                 return Results.Ok(userWebsiteSettings);
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Get user website settings";
+                operation.Description = "Retrieves the authenticated user's website preferences. Creates default settings if none exist.";
+                return Task.CompletedTask;
+            });
 
             app.MapPost("/setUserSettings", [Authorize] async (HttpContext httpContext, UserWebsiteSettings userWebsiteSettings) =>
             {
@@ -479,7 +531,12 @@ namespace AniWorldReminder_API
                 await dbService.UpdateUserWebsiteSettings(userId, userWebsiteSettings);
 
                 return Results.Ok();
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Update user website settings";
+                operation.Description = "Updates the authenticated user's website preferences and settings.";
+                return Task.CompletedTask;
+            });
 
             app.MapGet("/getSeasonEpisodesLinks", [AllowAnonymous] async (string seriesPath, string streamingPortal, [FromBody] SeasonModel seasonRequest, IDistributedCache cache) =>
             {
@@ -507,7 +564,12 @@ namespace AniWorldReminder_API
 
                 return Results.Ok(seasonData);
 
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Get season episode links";
+                operation.Description = "Retrieves download/streaming links for all episodes in a specific season. Results are cached with a 180-minute sliding expiration.";
+                return Task.CompletedTask;
+            });
 
             app.MapGet("/getDownloads", [AllowAnonymous] async (HttpContext httpContext) =>
             {
@@ -519,7 +581,12 @@ namespace AniWorldReminder_API
                 IEnumerable<EpisodeDownloadModel>? downloads = await dbService.GetDownloads(apiKey);
 
                 return Results.Ok(downloads);
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Get pending downloads";
+                operation.Description = "Retrieves all pending episode downloads for the user identified by the X-API-KEY header.";
+                return Task.CompletedTask;
+            });
 
             app.MapPost("/removeFinishedDownload", [AllowAnonymous] async (HttpContext httpContext, [FromBody] EpisodeDownloadModel episode) =>
             {
@@ -531,7 +598,12 @@ namespace AniWorldReminder_API
                 await dbService.RemoveFinishedDownload(apiKey, episode);
 
                 return Results.Ok();
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Remove finished download";
+                operation.Description = "Marks an episode download as complete and removes it from the pending downloads queue.";
+                return Task.CompletedTask;
+            });
 
             app.MapPost("/addDownloads", [Authorize] async (HttpContext httpContext, [FromBody] AddDownloadsRequestModel downloads) =>
             {
@@ -546,7 +618,12 @@ namespace AniWorldReminder_API
                 int episdesAdded = await dbService.InsertDownloadAsync(userId, downloads.SeriesId, downloads.Episodes);
 
                 return Results.Ok(episdesAdded);
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Add episodes to download queue";
+                operation.Description = "Adds multiple episodes to the authenticated user's download queue. Returns the number of episodes successfully added.";
+                return Task.CompletedTask;
+            });
 
             app.MapGet("/getAPIKey", [Authorize] async (HttpContext httpContext) =>
             {
@@ -558,7 +635,12 @@ namespace AniWorldReminder_API
                 string? apiKey = await authService.GetAPIKey(userId);
 
                 return Results.Ok(apiKey);
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Get user API key";
+                operation.Description = "Retrieves the API key for the authenticated user, used for external client authentication.";
+                return Task.CompletedTask;
+            });
 
             app.MapGet("/getDownloadsCount", [AllowAnonymous] async (HttpContext httpContext) =>
             {
@@ -575,7 +657,12 @@ namespace AniWorldReminder_API
                 };
 
                 return Results.Ok(downloadsCount);
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Get pending downloads count";
+                operation.Description = "Returns the total number of pending downloads for the user identified by the X-API-KEY header.";
+                return Task.CompletedTask;
+            });
 
             app.MapGet("/captchaNotify", [AllowAnonymous] async (HttpContext httpContext, string streamingPortal) =>
             {
@@ -593,7 +680,12 @@ namespace AniWorldReminder_API
                 await telegramBotService.SendMessageAsync(long.Parse(user.TelegramChatId), messageText);
 
                 return Results.Ok();
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Send captcha notification";
+                operation.Description = "Sends a Telegram notification to the user when the auto-download client encounters a captcha that requires manual solving.";
+                return Task.CompletedTask;
+            });
 
             app.MapPost("/setDownloaderPreferences", [AllowAnonymous] async (HttpContext httpContext, [FromBody] DownloaderPreferencesModel downloaderPreferences) =>
             {
@@ -605,7 +697,12 @@ namespace AniWorldReminder_API
                 await dbService.SetDownloaderPreferences(apiKey, downloaderPreferences);
 
                 return Results.Ok();
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Set downloader preferences";
+                operation.Description = "Updates the download client preferences for the user identified by the X-API-KEY header.";
+                return Task.CompletedTask;
+            });
 
             app.MapGet("/getDownloaderPreferences", [AllowAnonymous] async (HttpContext httpContext) =>
             {
@@ -617,7 +714,12 @@ namespace AniWorldReminder_API
                 DownloaderPreferencesModel? downloaderPreferences = await dbService.GetDownloaderPreferences(apiKey);
 
                 return Results.Ok(downloaderPreferences);
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Get downloader preferences";
+                operation.Description = "Retrieves the download client preferences for the user identified by the X-API-KEY header.";
+                return Task.CompletedTask;
+            });
 
             app.MapPost("/addMovieDownload", [Authorize] async (HttpContext httpContext, [FromBody] AddMovieDownloadRequestModel download) =>
             {
@@ -634,7 +736,12 @@ namespace AniWorldReminder_API
                 await dbService.InsertMovieDownloadAsync(download);
 
                 return Results.Ok();
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Add movie to download queue";
+                operation.Description = "Adds a movie to the authenticated user's download queue using a direct URL.";
+                return Task.CompletedTask;
+            });
 
             app.MapPost("/createWatchlist", [Authorize] async (HttpContext httpContext, string watchlistName, [FromBody] List<SeriesModel> watchlist) =>
             {
@@ -649,7 +756,12 @@ namespace AniWorldReminder_API
                     return Results.InternalServerError();
 
                 return Results.Ok(watchlistIdent);
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Create a new watchlist";
+                operation.Description = "Creates a new named watchlist with the provided series for the authenticated user. Returns the watchlist identifier.";
+                return Task.CompletedTask;
+            });
 
             app.MapGet("/getUserWatchlists", [Authorize] async (HttpContext httpContext) =>
             {
@@ -665,7 +777,12 @@ namespace AniWorldReminder_API
                     return Results.InternalServerError();
 
                 return Results.Ok(watchlists);
-            }).WithOpenApi();
+            }).AddOpenApiOperationTransformer((operation, context, ct) =>
+            {
+                operation.Summary = "Get user watchlists";
+                operation.Description = "Retrieves all watchlists created by the authenticated user.";
+                return Task.CompletedTask;
+            });
 
             app.Run();
         }
