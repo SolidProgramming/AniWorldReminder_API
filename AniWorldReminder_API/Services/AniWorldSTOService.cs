@@ -13,6 +13,8 @@ namespace AniWorldReminder_API.Services
         public string BaseUrl { get; init; } = baseUrl;
         public string Name { get; init; } = name;
         public StreamingPortal StreamingPortal { get; init; } = streamingPortal;
+        private const string PopularSeriesUrl = "/beliebte-serien";
+        private string PopularHtmlSearchQuery = "//div[@class='preview rows sevenCols']/div[@class='coverListItem']/a";
 
         public async Task<bool> InitAsync(WebProxy? proxy = null)
         {
@@ -46,7 +48,15 @@ namespace AniWorldReminder_API.Services
             if (!reachable)
                 return default;
 
-            HttpResponseMessage? resp = await HttpClient.GetAsync(new Uri(BaseUrl));
+            string popularUrl = BaseUrl;
+
+            if (StreamingPortal == StreamingPortal.STO)
+            {
+                popularUrl += PopularSeriesUrl;
+                PopularHtmlSearchQuery = "//div[@class='popular-page']/div[@class='mb-5'][2]/div[@class='row g-3']/div/a";
+            }
+
+            HttpResponseMessage? resp = await HttpClient.GetAsync(new Uri(popularUrl));
 
             if (!resp.IsSuccessStatusCode)
                 return null;
@@ -58,7 +68,7 @@ namespace AniWorldReminder_API.Services
 
             List<HtmlNode>? popularSeriesNode = new HtmlNodeQueryBuilder()
                .Query(doc)
-                   .GetNodesByQuery("//div[@class='preview rows sevenCols']/div[@class='coverListItem']/a");
+                   .GetNodesByQuery(PopularHtmlSearchQuery);
 
             if (popularSeriesNode is null || popularSeriesNode.Count == 0)
                 return default;
@@ -79,11 +89,25 @@ namespace AniWorldReminder_API.Services
                     continue;
                 }
 
-                if (!searchResult.Link.StartsWith("/anime/stream") && !searchResult.Link.StartsWith("/serie/stream"))
+                if (!searchResult.Link.StartsWith("/anime/stream") && !searchResult.Link.StartsWith("/serie"))
                     continue;
 
-                searchResult.Name = node.SelectSingleNode("h3").InnerText.HtmlDecode();
-                searchResult.Path = searchResult.Link.Replace("/anime/stream", "").Replace("/serie/stream", "");
+                switch (StreamingPortal)
+                {
+                    case StreamingPortal.AniWorld:
+                        searchResult.Name = node.SelectSingleNode("h3").InnerText.HtmlDecode();
+                        break;
+                    case StreamingPortal.STO:
+                        searchResult.Name = node.SelectSingleNode("picture/img").Attributes["alt"].Value.HtmlDecode();
+                        break;
+                    case StreamingPortal.MegaKino:
+                    case StreamingPortal.Undefined:
+                    default:
+                        break;
+                }
+
+                
+                searchResult.Path = searchResult.Link.Replace("/anime/stream", "");
                 searchResult.StreamingPortal = StreamingPortal;
 
                 html = await HttpClient.GetStringAsync($"{BaseUrl}{searchResult.Link}");
@@ -633,8 +657,8 @@ namespace AniWorldReminder_API.Services
                 return default;
 
             Medium? medium = aniListSearchMedia.Data.Page.Media.FirstOrDefault(_ => _.Title is not null &&
-                    ( ( !string.IsNullOrEmpty(_.Title.UserPreferred) && _.Title.UserPreferred.Contains(mediaName) ) ||
-                    ( !string.IsNullOrEmpty(_.Title.English) && _.Title.English.Contains(mediaName) ) ));
+                    ((!string.IsNullOrEmpty(_.Title.UserPreferred) && _.Title.UserPreferred.Contains(mediaName)) ||
+                    (!string.IsNullOrEmpty(_.Title.English) && _.Title.English.Contains(mediaName))));
 
             if (medium is null)
             {
