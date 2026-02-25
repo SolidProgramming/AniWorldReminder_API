@@ -106,7 +106,6 @@ namespace AniWorldReminder_API.Services
                         break;
                 }
 
-                
                 searchResult.Path = searchResult.Link.Replace("/anime/stream", "");
                 searchResult.StreamingPortal = StreamingPortal;
 
@@ -170,45 +169,76 @@ namespace AniWorldReminder_API.Services
                     return default;
             }
 
-            using StringContent postData = new($"keyword={seriesName.SearchSanitize()}", Encoding.UTF8, "application/x-www-form-urlencoded");
+            HttpResponseMessage resp;
 
-            HttpResponseMessage? resp = await HttpClient.PostAsync(new Uri($"{BaseUrl}/ajax/search"), postData);
-
-            if (!resp.IsSuccessStatusCode)
-                return default;
+            switch (StreamingPortal)
+            {
+                case StreamingPortal.AniWorld:
+                    StringContent postData = new($"keyword={seriesName.SearchSanitize()}", Encoding.UTF8, "application/x-www-form-urlencoded");
+                    resp = await HttpClient.PostAsync(new Uri($"{BaseUrl}/ajax/search"), postData);
+                    postData.Dispose();
+                    break;
+                case StreamingPortal.STO:
+                    resp = await HttpClient.GetAsync(new Uri($"{BaseUrl}/suche?term={seriesName.SearchSanitize()}&tab=shows"));
+                    break;
+                case StreamingPortal.MegaKino:
+                case StreamingPortal.Undefined:
+                default:
+                    return default;
+            }
 
             string content = await resp.Content.ReadAsStringAsync();
 
-            content = content.StripHtmlTags();
+            if (!resp.IsSuccessStatusCode || string.IsNullOrWhiteSpace(content))
+                return default;
 
-            try
+            List<SearchResultModel>? searchResults;
+
+            switch (StreamingPortal)
             {
-                List<SearchResultModel>? searchResults = System.Text.Json.JsonSerializer.Deserialize<List<SearchResultModel>>(content);
+                case StreamingPortal.AniWorld:
+                    content = content.StripHtmlTags();
+                    searchResults = System.Text.Json.JsonSerializer.Deserialize<List<SearchResultModel>>(content);
 
-                if (searchResults is null)
-                    return default;
+                    if (!searchResults.Any(_ => _.Link.Contains("/stream")))
+                        return default;
 
-                if (!searchResults.Any(_ => _.Link.Contains("/stream")))
-                    return default;
-
-                List<SearchResultModel>? filteredSearchResults = searchResults.Where(_ =>
+                    List<SearchResultModel>? filteredSearchResults = searchResults.Where(_ =>
                     !_.Link.StartsWith("/support") &&
                     _.Link.Contains("/stream") &&
                     !_.Link.Contains("staffel") &&
                     !_.Link.Contains("episode"))
                         .ToList();
 
-                if (strictSearch)
-                {
-                    filteredSearchResults = filteredSearchResults.Where(_ => _.Name.HtmlDecode() == seriesName).ToList();
-                }
+                    if (strictSearch)
+                    {
+                        filteredSearchResults = filteredSearchResults.Where(_ => _.Name.HtmlDecode() == seriesName).ToList();
+                    }
 
-                if (filteredSearchResults.Count == 0)
+                    if (filteredSearchResults.Count == 0)
+                        return default;
+
+                    searchResults = filteredSearchResults;
+
+                    break;
+                case StreamingPortal.STO:
+                    searchResults = ParseSTOSearchResults(content);
+                    break;
+                case StreamingPortal.MegaKino:
+                case StreamingPortal.Undefined:
+                default:
                     return default;
+            }
 
+
+            if (searchResults is null)
+                return default;
+
+            try
+            {
                 HtmlDocument doc = new();
 
-                foreach (SearchResultModel result in filteredSearchResults)
+                foreach (SearchResultModel result in searchResults)
                 {
                     if (string.IsNullOrEmpty(result.Link))
                         continue;
@@ -228,12 +258,6 @@ namespace AniWorldReminder_API.Services
                         if (tmdbSearchTV is not null && !string.IsNullOrEmpty(tmdbSearchTV.PosterPath))
                         {
                             result.CoverArtUrl = $"https://image.tmdb.org/t/p/w300{tmdbSearchTV.PosterPath}";
-                        }
-                        else
-                        {
-                            string? coverArtUrl = GetCoverArtUrl(doc);
-
-                            result.CoverArtUrl = await GetCoverArtBase64(coverArtUrl);
                         }
                     }
                     else if (StreamingPortal == StreamingPortal.AniWorld)
@@ -255,7 +279,7 @@ namespace AniWorldReminder_API.Services
                     }
                 }
 
-                return filteredSearchResults;
+                return searchResults;
             }
             catch (Exception)
             {
@@ -263,17 +287,58 @@ namespace AniWorldReminder_API.Services
             }
         }
 
+        private List<SearchResultModel> ParseSTOSearchResults(string searchResultHtml)
+        {
+            HtmlDocument doc = new();
+            doc.LoadHtml(searchResultHtml);
+
+            List<HtmlNode>? searchResultNodes = new HtmlNodeQueryBuilder()
+               .Query(doc)
+                   .GetNodesByQuery("//a[@class='d-block show-cover']");
+
+            List<SearchResultModel>? searchResults = [];
+
+            foreach (var node in searchResultNodes.Distinct())
+            {
+                string link = node.Attributes["href"].Value;
+
+                if (!link.StartsWith("/serie"))
+                    continue;
+
+                string name = node.SelectSingleNode("picture/img").Attributes["alt"].Value.HtmlDecode();
+                string coverUrl = BaseUrl + node.SelectSingleNode("picture/img").Attributes["src"].Value;
+
+                SearchResultModel searchResult = new()
+                {
+                    Name = name,
+                    Link = link,
+                    Description = string.Empty,
+                    StreamingPortal = StreamingPortal,
+                    Path = link.Replace("/serie/stream", ""),
+                    CoverArtUrl = coverUrl
+                };
+
+                searchResults.Add(searchResult);
+            }
+
+            return searchResults;
+        }
+
         public async Task<SeriesInfoModel?> GetMediaInfoAsync(string seriesPath, bool getMovieCoverArtUrl = false)
         {
-            string seriesUrl;
+            string seriesUrl, seasonNodeQuery, titleNodeQuery;
 
             switch (StreamingPortal)
             {
                 case StreamingPortal.STO:
-                    seriesUrl = $"{BaseUrl}/serie/stream/{seriesPath}";
+                    seriesUrl = $"{BaseUrl}/serie/{seriesPath}";
+                    seasonNodeQuery = "//li[@class='nav-item me-1 mb-2'][last()]/a";
+                    titleNodeQuery = "//li[@class='breadcrumb-item show-name']/a";
                     break;
                 case StreamingPortal.AniWorld:
                     seriesUrl = $"{BaseUrl}/anime/stream/{seriesPath}";
+                    seasonNodeQuery = "//div[@class='hosterSiteDirectNav']/ul/li[last()]";
+                    titleNodeQuery = "//div[@class='series-title']/h1/span";
                     break;
                 default:
                     return null;
@@ -289,25 +354,40 @@ namespace AniWorldReminder_API.Services
             HtmlDocument doc = new();
             doc.LoadHtml(content);
 
-            List<HtmlNode>? seriesInfoNode = new HtmlNodeQueryBuilder()
+            List<HtmlNode>? seasonNode = new HtmlNodeQueryBuilder()
                 .Query(doc)
-                    .GetNodesByQuery("//div[@class='hosterSiteDirectNav']/ul/li[last()]");
+                    .GetNodesByQuery(seasonNodeQuery);
 
-            if (seriesInfoNode is null || seriesInfoNode.Count == 0)
+            if (seasonNode is null || seasonNode.Count == 0)
                 return default;
 
-            if (!int.TryParse(seriesInfoNode[0].InnerText, out int seasonCount))
-                return default;
+            int seasonCount = 0;
+
+            switch (StreamingPortal)
+            {
+                case StreamingPortal.AniWorld:
+                    if (!int.TryParse(seasonNode[0].InnerText, out seasonCount))
+                        return default;
+                    break;
+                case StreamingPortal.STO:
+                    if (!int.TryParse(seasonNode[0].Attributes["data-season-pill"].Value, out seasonCount))
+                        return default;
+                    break;
+                case StreamingPortal.Undefined:
+                case StreamingPortal.MegaKino:
+                default:
+                    break;
+            }
 
             HtmlNode? titleNode = new HtmlNodeQueryBuilder()
                 .Query(doc)
-                    .GetNodesByQuery("//div[@class='series-title']/h1/span")
+                    .GetNodesByQuery(titleNodeQuery)
                         .FirstOrDefault();
 
             if (titleNode is null)
                 return default;
 
-            string? seriesName = titleNode.InnerHtml.HtmlDecode().HtmlDecode();
+            string? seriesName = titleNode.InnerHtml.Trim().HtmlDecode().HtmlDecode();
 
             if (string.IsNullOrEmpty(seriesName))
                 return default;
@@ -316,7 +396,7 @@ namespace AniWorldReminder_API.Services
             {
                 Name = seriesName,
                 DirectLink = seriesUrl,
-                Description = GetDescription(doc),
+                Description = GetDescription(doc, StreamingPortal),
                 SeasonCount = seasonCount,
                 StreamingPortal = StreamingPortal,
                 Seasons = await GetSeasonsAsync(seriesPath, seasonCount),
@@ -410,6 +490,7 @@ namespace AniWorldReminder_API.Services
         private async Task<List<SeasonModel>?> GetSeasonsAsync(string seriesPath, int seasonCount)
         {
             List<SeasonModel> seasons = [];
+            string episodesNodesQuery;
 
             for (int i = 0; i < seasonCount; i++)
             {
@@ -418,10 +499,12 @@ namespace AniWorldReminder_API.Services
                 switch (StreamingPortal)
                 {
                     case StreamingPortal.STO:
-                        seasonUrl = $"{BaseUrl}/serie/stream/{seriesPath}/staffel-{i + 1}";
+                        seasonUrl = $"{BaseUrl}/serie/{seriesPath}/staffel-{i + 1}";
+                        episodesNodesQuery = "//nav[@id='episode-nav']/ul/li[@class='nav-item me-1 mb-2']/a[@class=' alphabet-link nav-link  ']";
                         break;
                     case StreamingPortal.AniWorld:
                         seasonUrl = $"{BaseUrl}/anime/stream/{seriesPath}/staffel-{i + 1}";
+                        episodesNodesQuery = $"//div[@class='hosterSiteDirectNav']/ul/li/a[@data-season-id=\"{i + 1}\"]";
                         break;
                     default:
                         return default;
@@ -442,7 +525,7 @@ namespace AniWorldReminder_API.Services
 
                 List<HtmlNode>? episodeNodes = new HtmlNodeQueryBuilder()
                     .Query(doc)
-                        .GetNodesByQuery($"//div[@class='hosterSiteDirectNav']/ul/li/a[@data-season-id=\"{i + 1}\"]");
+                        .GetNodesByQuery(episodesNodesQuery);
 
                 SeasonModel season = new()
                 {
@@ -464,17 +547,19 @@ namespace AniWorldReminder_API.Services
 
         private async Task<List<EpisodeModel>?> GetSeasonEpisodesAsync(string seriesPath, int season)
         {
-            string seasonUrl, host;
+            string seasonUrl, episodesNodesQuery, episodesNamesRegex;
 
             switch (StreamingPortal)
             {
                 case StreamingPortal.STO:
-                    seasonUrl = $"{BaseUrl}/serie/stream/{seriesPath}/staffel-{season}";
-                    host = "s.to";
+                    seasonUrl = $"{BaseUrl}/serie/{seriesPath}/staffel-{season}";
+                    episodesNodesQuery = "//tbody/tr[@class='episode-row  ']/td[@class='fw-medium episode-title-cell']";
+                    episodesNamesRegex = "<(strong|span) class=\".*?episode-title-.*?\" title=\"(?'Name'.*?)\">.*?<\\/(strong|span)>";
                     break;
                 case StreamingPortal.AniWorld:
                     seasonUrl = $"{BaseUrl}/anime/stream/{seriesPath}/staffel-{season}";
-                    host = "aniworld.to";
+                    episodesNodesQuery = "//tbody/tr/td[@class=\"seasonEpisodeTitle\"]/a";
+                    episodesNamesRegex = "<(strong|span)>(?'Name'.*?)</(strong|span)>";
                     break;
                 default:
                     return null;
@@ -495,7 +580,7 @@ namespace AniWorldReminder_API.Services
 
             List<HtmlNode>? episodeNodes = new HtmlNodeQueryBuilder()
                 .Query(doc)
-                    .GetNodesByQuery("//tbody/tr/td[@class=\"seasonEpisodeTitle\"]/a");
+                    .GetNodesByQuery(episodesNodesQuery);
 
             if (episodeNodes is null || episodeNodes.Count == 0)
                 return null;
@@ -506,22 +591,26 @@ namespace AniWorldReminder_API.Services
 
             foreach (HtmlNode episodeNode in episodeNodes)
             {
-                string episodeName = new Regex("<(strong|span)>(?'Name'.*?)</(strong|span)>")
+                try
+                {
+                    string episodeName = new Regex(episodesNamesRegex)
                     .Matches(episodeNode.InnerHtml)
                         .First(_ => !string.IsNullOrEmpty(_.Groups["Name"].Value))
                             .Groups["Name"]
                                 .Value;
 
-                if (string.IsNullOrEmpty(episodeName))
-                    continue;
+                    if (string.IsNullOrEmpty(episodeName))
+                        continue;
 
-                episodes.Add(new EpisodeModel()
-                {
-                    Name = episodeName.HtmlDecode(),
-                    Episode = i,
-                    Season = season,
-                    Languages = GetEpisodeLanguages(i, html)
-                });
+                    episodes.Add(new EpisodeModel()
+                    {
+                        Name = episodeName.HtmlDecode(),
+                        Episode = i,
+                        Season = season,
+                        Languages = GetEpisodeLanguages(i, html)
+                    });
+                }
+                catch (Exception){ }
 
                 i++;
             }
@@ -539,7 +628,7 @@ namespace AniWorldReminder_API.Services
                 switch (StreamingPortal)
                 {
                     case StreamingPortal.STO:
-                        episodeUrl = $"{BaseUrl}/serie/stream/{seriesPath}" + "/staffel-{0}/episode-{1}";
+                        episodeUrl = $"{BaseUrl}/serie/{seriesPath}" + "/staffel-{0}/episode-{1}";
                         host = "s.to";
                         break;
                     case StreamingPortal.AniWorld:
@@ -599,11 +688,27 @@ namespace AniWorldReminder_API.Services
             return availableLanguages;
         }
 
-        private string? GetDescription(HtmlDocument document)
+        private string? GetDescription(HtmlDocument document, StreamingPortal streamingPortal)
         {
+            string descriptionNodeQuery;
+
+            switch (streamingPortal)
+            {
+                case StreamingPortal.AniWorld:
+                    descriptionNodeQuery = "seri_des";
+                    break;
+                case StreamingPortal.STO:
+                    descriptionNodeQuery = "description-text";
+                    break;
+                case StreamingPortal.Undefined:
+                case StreamingPortal.MegaKino:
+                default:
+                    return null;
+            }
+
             HtmlNode? node = new HtmlNodeQueryBuilder()
                .Query(document)
-                   .ByClass("seri_des")
+                   .ByClass(descriptionNodeQuery)
                    .Result;
 
             if (node is null)
