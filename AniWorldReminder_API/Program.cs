@@ -65,7 +65,6 @@ namespace AniWorldReminder_API
                 StreamingPortalServiceFactory streamingPortalServiceFactory = new();
                 streamingPortalServiceFactory.AddService(StreamingPortal.AniWorld, _);
                 streamingPortalServiceFactory.AddService(StreamingPortal.STO, _);
-                streamingPortalServiceFactory.AddService(StreamingPortal.MegaKino, _);
 
                 return streamingPortalServiceFactory;
             });
@@ -104,15 +103,11 @@ namespace AniWorldReminder_API
 
             IStreamingPortalService aniWorldService = streamingPortalServiceFactory.GetService(StreamingPortal.AniWorld);
             IStreamingPortalService sTOService = streamingPortalServiceFactory.GetService(StreamingPortal.STO);
-            IStreamingPortalService megaKinoService = streamingPortalServiceFactory.GetService(StreamingPortal.MegaKino);
 
             if (!await aniWorldService.InitAsync(proxy))
                 return;
 
             if (!await sTOService.InitAsync(proxy))
-                return;
-
-            if (!await megaKinoService.InitAsync(proxy))
                 return;
 
             await InitPopularSeriesCache();
@@ -164,14 +159,6 @@ namespace AniWorldReminder_API
             {
                 List<SearchResultModel> allSearchResults = [];
 
-                if (mediaType.HasFlag(MediaType.Films))
-                {
-                    List<SearchResultModel>? searchResultsMegaKino = await megaKinoService.GetMediaAsync(seriesName);
-
-                    if (searchResultsMegaKino.HasItems())
-                        allSearchResults.AddRange(searchResultsMegaKino!);
-                }
-
                 if (mediaType.HasFlag(MediaType.Series))
                 {
                     List<Task<List<SearchResultModel>?>> tasks = [];
@@ -217,10 +204,6 @@ namespace AniWorldReminder_API
                     case StreamingPortal.STO:
                         seriesInfo = await sTOService.GetMediaInfoAsync(seriesPath);
                         break;
-                    case StreamingPortal.MegaKino:
-                        seriesInfo = await megaKinoService.GetMediaInfoAsync(seriesPath, getMovieCoverArtUrl: true);
-                        break;
-
                     case StreamingPortal.Undefined:
                     default:
                         return Results.BadRequest();

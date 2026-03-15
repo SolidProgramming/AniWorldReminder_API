@@ -25,11 +25,11 @@
             switch (streamingPortal)
             {
                 case StreamingPortal.STO:
-                    ILogger<AniWorldSTOService> loggerSTO = sp.GetRequiredService<ILogger<AniWorldSTOService>>();
-                    return new AniWorldSTOService(loggerSTO, httpClientFactory, "https://s.to", "S.TO", streamingPortal, tmdbService);
+                    ILogger<STOService> loggerSTO = sp.GetRequiredService<ILogger<STOService>>();
+                    return new STOService(loggerSTO, httpClientFactory, tmdbService);
                 case StreamingPortal.AniWorld:
-                    ILogger<AniWorldSTOService> loggerAniWorld = sp.GetRequiredService<ILogger<AniWorldSTOService>>();
-                    return new AniWorldSTOService(loggerAniWorld, httpClientFactory, "https://aniworld.to", "AniWorld", streamingPortal, tmdbService);
+                    ILogger<AniWorldService> loggerAniWorld = sp.GetRequiredService<ILogger<AniWorldService>>();
+                    return new AniWorldService(loggerAniWorld, httpClientFactory, tmdbService);
                 case StreamingPortal.MegaKino:
                     ILogger<MegaKinoService> loggerMegaKino = sp.GetRequiredService<ILogger<MegaKinoService>>();
                     return new MegaKinoService(loggerMegaKino, httpClientFactory, "https://megakino.ws", "MegaKino", streamingPortal);
