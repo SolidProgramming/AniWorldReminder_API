@@ -387,7 +387,7 @@ namespace AniWorldReminder_API.Services
                 directViewLinks.Add(new DirectViewLinkModel
                 {
                     Language = language,
-                    DirectLink = GetAbsoluteUrl(redirectLink)
+                    DirectLink = new Uri(new Uri(BaseUrl), redirectLink).ToString()
                 });
             }
 

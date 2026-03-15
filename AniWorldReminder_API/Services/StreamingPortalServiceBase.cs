@@ -149,14 +149,6 @@ namespace AniWorldReminder_API.Services
             return await GetCoverArtBase64Async(GetCoverArtUrl(document));
         }
 
-        protected string GetAbsoluteUrl(string redirectUrl)
-        {
-            if (Uri.TryCreate(redirectUrl, UriKind.Absolute, out Uri? absoluteUri))
-                return absoluteUri.ToString();
-
-            return new Uri(new Uri(BaseUrl), redirectUrl).ToString();
-        }
-
         protected abstract List<DirectViewLinkModel>? GetLanguageRedirectLinks(string html);
     }
 }
