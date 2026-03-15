@@ -1,5 +1,4 @@
 using HtmlAgilityPack;
-using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -7,8 +6,7 @@ using System.Text.RegularExpressions;
 namespace AniWorldReminder_API.Services
 {
     public class AniWorldService : StreamingPortalServiceBase<AniWorldService>
-    {
-        private const string PopularSeriesUrl = "/beliebte-serien";
+    {        
         private const string PopularHtmlSearchQuery = "//div[@class='preview rows sevenCols']/div[@class='coverListItem']/a";
         private const string DescriptionNodeQuery = "seri_des";
         private const string TitleNodeQuery = "//div[@class='series-title']/h1/span";
@@ -29,7 +27,7 @@ namespace AniWorldReminder_API.Services
             if (!reachable)
                 return null;
 
-            HttpResponseMessage response = await HttpClient.GetAsync(new Uri($"{BaseUrl}{PopularSeriesUrl}"));
+            HttpResponseMessage response = await HttpClient.GetAsync(new Uri(BaseUrl));
 
             if (!response.IsSuccessStatusCode)
                 return null;

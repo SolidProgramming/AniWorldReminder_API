@@ -1,5 +1,4 @@
 using HtmlAgilityPack;
-using System.Net;
 using System.Text.RegularExpressions;
 
 namespace AniWorldReminder_API.Services
