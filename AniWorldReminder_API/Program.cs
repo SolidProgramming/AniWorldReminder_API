@@ -193,7 +193,7 @@ namespace AniWorldReminder_API
                 string cachePath = $"{seriesPath}@{hoster}";
                 SeriesInfoModel? cachedSeriesInfo = await cacheHelper.GetCacheAsync<SeriesInfoModel>(cachePath);
 
-                if (cachedSeriesInfo is not null)
+                if (cachedSeriesInfo is not null && cachedSeriesInfo.Seasons is { Count: > 0 } && !cachedSeriesInfo.Seasons.All(_ => _.Episodes is { Count: 0 }))
                     return Results.Ok(cachedSeriesInfo);
 
                 switch (streamingPortal)
@@ -212,7 +212,10 @@ namespace AniWorldReminder_API
                 if (seriesInfo is null)
                     return Results.NotFound();
 
-                await cacheHelper.SetCacheAsync(cachePath, seriesInfo, 180);
+                if (seriesInfo.Seasons is { Count: > 0 } && !seriesInfo.Seasons.All(_ => _.Episodes is { Count: 0 }))
+                {
+                    await cacheHelper.SetCacheAsync(cachePath, seriesInfo, 180);
+                }
 
                 return Results.Ok(seriesInfo);
 

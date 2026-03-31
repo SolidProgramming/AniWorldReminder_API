@@ -275,7 +275,7 @@ namespace AniWorldReminder_API.Services
 
                 List<HtmlNode>? episodeNodes = new HtmlNodeQueryBuilder()
                     .Query(document)
-                    .GetNodesByQuery("//nav[@id='episode-nav']/ul/li[@class='nav-item me-1 mb-2']/a[@class=' alphabet-link nav-link  ']");
+                    .GetNodesByQuery("//nav[@id='episode-nav']/ul/li[@class='nav-item me-1 mb-2']/a[contains(@class,'alphabet-link nav-link')]");
 
                 if (episodeNodes is null || episodeNodes.Count == 0)
                     continue;
