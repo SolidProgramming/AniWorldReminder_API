@@ -52,6 +52,24 @@ namespace AniWorldReminder_API.Misc
             return (!string.IsNullOrEmpty(result), result);
         }
 
+        public static IEnumerable<TEnum> GetFlags<TEnum>(this TEnum value, TEnum ignore = default)
+            where TEnum : struct, Enum
+        {
+            Enum enumValue = (Enum)(object)value;
+            TEnum[] allValues = Enum.GetValues<TEnum>();
+
+            return allValues.Where(flag =>
+            {
+                if (EqualityComparer<TEnum>.Default.Equals(flag, ignore))
+                    return false;
+
+                if (Convert.ToInt64(flag) == 0)
+                    return false;
+
+                return enumValue.HasFlag((Enum)(object)flag);
+            });
+        }
+
         private static Dictionary<Language, string> VOELanguageKeyCollection = new()
         {
             { Language.GerDub, "1"},
@@ -86,6 +104,28 @@ namespace AniWorldReminder_API.Misc
             return default;
         }
 
+        public static string ToLanguageText(this Language language)
+        {
+            if (language == Language.None)
+                return "None";
+
+            Dictionary<Language, string> languageTextCollection = new()
+            {
+                { Language.GerDub, "GerDub" },
+                { Language.GerSub, "GerSub" },
+                { Language.EngDub, "EngDub" },
+                { Language.EngSub, "EngSub" },
+                { Language.EngDubGerSub, "EngDub + GerSub" }
+            };
+
+            if (languageTextCollection.TryGetValue(language, out string? languageText))
+                return languageText;
+
+            return string.Join(", ", language
+                .GetFlags(Language.None)
+                .Select(flag => languageTextCollection.TryGetValue(flag, out string? text) ? text : flag.ToString()));
+        }
+
         public static string? GetClaim(this HttpContext httpContext, CustomClaimType claimType)
         {
             return httpContext.User.Claims
@@ -98,7 +138,6 @@ namespace AniWorldReminder_API.Misc
         {
             { "AniWorld", StreamingPortal.AniWorld },
             { "STO", StreamingPortal.STO },
-            { "MegaKino", StreamingPortal.MegaKino },
         };
 
         public static StreamingPortal ToStreamingPortal(this string streamingPortal)

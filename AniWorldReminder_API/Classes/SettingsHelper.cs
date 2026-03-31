@@ -16,7 +16,7 @@ namespace AniWorldReminder_API.Classes
 
                 // Ensure the directory exists before attempting to read or write the settings file
                 string? directory = Path.GetDirectoryName(path);
-                if(!Directory.Exists(directory))
+                if(!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                 {
                     Directory.CreateDirectory(directory);
                 }

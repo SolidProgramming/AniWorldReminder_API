@@ -5,6 +5,8 @@ global using AniWorldReminder_API.Interfaces;
 global using AniWorldReminder_API.Models;
 global using AniWorldReminder_API.Services;
 global using AniWorldReminder_API.Misc;
+using Hangfire;
+using Hangfire.MemoryStorage;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -23,6 +25,11 @@ namespace AniWorldReminder_API
             WebApplicationBuilder? builder = WebApplication.CreateBuilder(args);
 
             builder.Services.AddDistributedMemoryCache();
+            builder.Services.AddHangfire(configuration => configuration
+                .UseSimpleAssemblyNameTypeSerializer()
+                .UseRecommendedSerializerSettings()
+                .UseMemoryStorage());
+            builder.Services.AddHangfireServer();
 
             JwtSettingsModel? jwtSettings = SettingsHelper.ReadSettings<JwtSettingsModel>();
 
@@ -59,6 +66,7 @@ namespace AniWorldReminder_API
             builder.Services.AddSingleton<ITelegramBotService, TelegramBotService>();
             builder.Services.AddSingleton<ITMDBService, TMDBService>();
             builder.Services.AddSingleton<ICacheHelperService, CacheHelperService>();
+            builder.Services.AddTransient<UpsertEpisodeInfoJob>();
 
             builder.Services.AddSingleton<IStreamingPortalServiceFactory>(_ =>
             {
@@ -122,9 +130,28 @@ namespace AniWorldReminder_API
                 });
             }
 
+            if (appSettings?.EnableHangfireDashboard == true)
+            {
+                app.UseHangfireDashboard(appSettings.HangfireDashboardPath);
+            }
+
             app.UseHttpsRedirection();
             app.UseAuthentication();
             app.UseAuthorization();
+
+            if (appSettings?.EnableEpisodeReminderJob != false)
+            {
+                IRecurringJobManager recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+
+                recurringJobManager.AddOrUpdate<UpsertEpisodeInfoJob>(
+                    "episode-reminder-scan",
+                    job => job.ExecuteAsync(),
+                    appSettings?.EpisodeReminderCron ?? "*/15 * * * *",
+                    new RecurringJobOptions
+                    {
+                        TimeZone = TimeZoneInfo.Local
+                    });
+            }
 
             async Task InitPopularSeriesCache()
             {
@@ -283,10 +310,16 @@ namespace AniWorldReminder_API
                         { "Validation", problems.ToArray() }
                     };
 
-                    await dbService.UpdateVerificationStatusAsync(token.TelegramChatId, VerificationStatus.NotVerified);
+                    if (!string.IsNullOrEmpty(token.TelegramChatId))
+                    {
+                        await dbService.UpdateVerificationStatusAsync(token.TelegramChatId, VerificationStatus.NotVerified);
+                    }
 
                     return Results.ValidationProblem(problemsList);
                 }
+
+                if (string.IsNullOrEmpty(token.TelegramChatId))
+                    return Results.BadRequest("Invalid Telegram chat id.");
 
                 UserModel? user = await dbService.GetUserByTelegramIdAsync(token.TelegramChatId);
 
@@ -369,6 +402,9 @@ namespace AniWorldReminder_API
                 if (string.IsNullOrEmpty(userId))
                     return Results.Unauthorized();
 
+                if (string.IsNullOrEmpty(addReminderRequest.SeriesPath))
+                    return Results.BadRequest();
+
                 SeriesModel? series = await dbService.GetSeriesAsync(addReminderRequest.SeriesPath);
 
                 if (series is null)
@@ -408,6 +444,9 @@ namespace AniWorldReminder_API
 
                     await dbService.InsertUsersSeriesAsync(usersSeries);
 
+                    if (series is null || string.IsNullOrEmpty(user.TelegramChatId))
+                        return Results.Unauthorized();
+
                     string messageText = $"{Emoji.Checkmark} Dein Reminder f&uuml;r <b>{series.Name}</b> wurde hinzugef&uuml;gt.";
 
                     if (string.IsNullOrEmpty(series.CoverArtUrl))
@@ -445,6 +484,9 @@ namespace AniWorldReminder_API
                     return Results.BadRequest();
 
                 await dbService.DeleteUsersSeriesAsync(usersSeries);
+
+                if (usersSeries.Series is null || usersSeries.Users is null || string.IsNullOrEmpty(usersSeries.Users.TelegramChatId))
+                    return Results.BadRequest();
 
                 string messageText = $"{Emoji.Checkmark} Reminder f&uuml;r <b>{usersSeries.Series.Name}</b> wurde gel&ouml;scht.";
                 await telegramBotService.SendMessageAsync(long.Parse(usersSeries.Users.TelegramChatId), messageText);

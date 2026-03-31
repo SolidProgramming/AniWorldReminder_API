@@ -7,9 +7,8 @@ namespace AniWorldReminder_API.Services
 {
     public class TMDBService : ITMDBService
     {
-        private readonly ILogger<TMDBService>? Logger;
-        private readonly Interfaces.IHttpClientFactory? HttpClientFactory;
-        private HttpClient? HttpClient;
+        private readonly ILogger<TMDBService> Logger;
+        private readonly HttpClient HttpClient;
         private const string Version = "3";
         private readonly string Endpoint = $"https://api.themoviedb.org/{Version}/";
         private readonly TMDBSettingsModel? TMDBSettings;
@@ -17,9 +16,7 @@ namespace AniWorldReminder_API.Services
         public TMDBService(ILogger<TMDBService> logger, Interfaces.IHttpClientFactory httpClientFactory)
         {
             Logger = logger;
-            HttpClientFactory = httpClientFactory;
-
-            HttpClient = HttpClientFactory.CreateHttpClient<TMDBService>();
+            HttpClient = httpClientFactory.CreateHttpClient<TMDBService>();
 
             HttpClient.BaseAddress = new Uri(Endpoint);
 
@@ -60,12 +57,14 @@ namespace AniWorldReminder_API.Services
         }
         public async Task<T?> GetAsync<T>(string uri, Dictionary<string, string> queryData)
         {
-            HttpRequestMessage request = new(HttpMethod.Get, new Uri(QueryHelpers.AddQueryString(HttpClient.BaseAddress + uri, queryData!)));
+            Dictionary<string, string?> normalizedQueryData = queryData.ToDictionary(_ => _.Key, _ => (string?)_.Value);
+            HttpRequestMessage request = new(HttpMethod.Get, new Uri(QueryHelpers.AddQueryString($"{HttpClient.BaseAddress}{uri}", normalizedQueryData)));
             return await SendRequest<T>(request);
         }
         public async Task<T?> GetAsync<T>(string uri, Dictionary<string, string> queryData, object body)
         {
-            HttpRequestMessage request = new(HttpMethod.Get, new Uri(QueryHelpers.AddQueryString(HttpClient.BaseAddress + uri, queryData!)))
+            Dictionary<string, string?> normalizedQueryData = queryData.ToDictionary(_ => _.Key, _ => (string?)_.Value);
+            HttpRequestMessage request = new(HttpMethod.Get, new Uri(QueryHelpers.AddQueryString($"{HttpClient.BaseAddress}{uri}", normalizedQueryData)))
             {
                 Content = new StringContent(System.Text.Json.JsonSerializer.Serialize(body), Encoding.UTF8, "application/json")
             };
@@ -81,13 +80,10 @@ namespace AniWorldReminder_API.Services
         }
         private async Task<T?> SendRequest<T>(HttpRequestMessage request)
         {
-            if (HttpClient is null)
-                return default;
-
             if (TMDBSettings is not null && !string.IsNullOrEmpty(TMDBSettings.AccessToken))
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", TMDBSettings.AccessToken);
 
-            using HttpResponseMessage? response = await HttpClient.SendAsync(request);
+            using HttpResponseMessage response = await HttpClient.SendAsync(request);
 
             if (response.StatusCode == HttpStatusCode.Unauthorized)
                 return default;

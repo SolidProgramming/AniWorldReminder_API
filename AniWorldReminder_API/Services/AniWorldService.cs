@@ -98,10 +98,11 @@ namespace AniWorldReminder_API.Services
 
             List<SearchResultModel>? searchResults = JsonSerializer.Deserialize<List<SearchResultModel>>(content.StripHtmlTags());
 
-            if (searchResults?.Any(_ => _.Link.Contains("/stream")) != true)
+            if (searchResults?.Any(_ => _.Link?.Contains("/stream") == true) != true)
                 return null;
 
             List<SearchResultModel> filteredSearchResults = searchResults.Where(_ =>
+                    !string.IsNullOrEmpty(_.Link) &&
                     !_.Link.StartsWith("/support") &&
                     _.Link.Contains("/stream") &&
                     !_.Link.Contains("staffel") &&
@@ -111,7 +112,7 @@ namespace AniWorldReminder_API.Services
             if (strictSearch)
             {
                 filteredSearchResults = filteredSearchResults
-                    .Where(_ => _.Name.HtmlDecode() == seriesName)
+                    .Where(_ => !string.IsNullOrEmpty(_.Name) && _.Name.HtmlDecode() == seriesName)
                     .ToList();
             }
 
@@ -125,8 +126,8 @@ namespace AniWorldReminder_API.Services
                     if (string.IsNullOrEmpty(result.Link))
                         continue;
 
-                    result.Name = result.Name.HtmlDecode();
-                    result.Description = result.Description.HtmlDecode().HtmlDecode();
+                    result.Name = result.Name?.HtmlDecode();
+                    result.Description = result.Description?.HtmlDecode().HtmlDecode();
                     result.StreamingPortal = StreamingPortal;
                     result.Path = result.Link.Replace("/anime/stream", string.Empty);
 
@@ -223,6 +224,9 @@ namespace AniWorldReminder_API.Services
 
             HtmlDocument document = new();
             document.LoadHtml(html);
+
+            if (string.IsNullOrEmpty(searchResult.Name))
+                return;
 
             AniListSearchMediaResponseModel? aniListSearchMediaResponse = await GetAniListSearchMediaResponseAsync(searchResult.Name);
             Medium? medium = GetAniListSearchMedia(searchResult.Name, aniListSearchMediaResponse);
@@ -326,6 +330,9 @@ namespace AniWorldReminder_API.Services
             List<HtmlNode>? languages = new HtmlNodeQueryBuilder()
                 .Query(document)
                 .GetNodesByQuery($"//tr[@data-episode-season-id=\"{episode}\"]/td/a/img");
+
+            if (languages is null || languages.Count == 0)
+                return Language.None;
 
             Language availableLanguages = Language.None;
 

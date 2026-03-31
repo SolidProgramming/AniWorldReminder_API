@@ -42,7 +42,7 @@ namespace AniWorldReminder_API.Services
             SigningCredentials? credentials = new(securityKey, SecurityAlgorithms.HmacSha256);
 
             Claim[]? claims = [
-                new Claim("Username", user.Username),
+                new Claim("Username", user.Username ?? string.Empty),
                 new Claim("UserId", user.Id.ToString())
             ];
 

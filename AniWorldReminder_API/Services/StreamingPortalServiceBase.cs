@@ -87,7 +87,7 @@ namespace AniWorldReminder_API.Services
                 return null;
 
             int? tmdbSeriesId = searchTV.Results
-                .FirstOrDefault(_ => _.Name!.Contains(seriesName) || seriesName.Contains(_.Name))?
+                .FirstOrDefault(_ => !string.IsNullOrEmpty(_.Name) && (_.Name.Contains(seriesName) || seriesName.Contains(_.Name)))?
                 .Id;
 
             if (tmdbSeriesId is > 0)

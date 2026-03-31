@@ -113,16 +113,16 @@ namespace AniWorldReminder_API.Models
         public object? BackdropPath { get; set; }
 
         [JsonPropertyName("created_by")]
-        public List<CreatedBy> CreatedBy { get; set; }
+        public List<CreatedBy> CreatedBy { get; set; } = [];
 
         [JsonPropertyName("episode_run_time")]
-        public List<int> EpisodeRunTime { get; set; }
+        public List<int> EpisodeRunTime { get; set; } = [];
 
         [JsonPropertyName("first_air_date")]
         public string? FirstAirDate { get; set; }
 
         [JsonPropertyName("genres")]
-        public List<Genre> Genres { get; set; }
+        public List<Genre> Genres { get; set; } = [];
 
         [JsonPropertyName("homepage")]
         public string? Homepage { get; set; }
@@ -134,13 +134,13 @@ namespace AniWorldReminder_API.Models
         public bool? InProduction { get; set; }
 
         [JsonPropertyName("languages")]
-        public List<string> Languages { get; set; }
+        public List<string> Languages { get; set; } = [];
 
         [JsonPropertyName("last_air_date")]
         public string? LastAirDate { get; set; }
 
         [JsonPropertyName("last_episode_to_air")]
-        public LastEpisodeToAir LastEpisodeToAir { get; set; }
+        public LastEpisodeToAir? LastEpisodeToAir { get; set; }
 
         [JsonPropertyName("name")]
         public string? Name { get; set; }
@@ -149,7 +149,7 @@ namespace AniWorldReminder_API.Models
         public object? NextEpisodeToAir { get; set; }
 
         [JsonPropertyName("networks")]
-        public List<Network> Networks { get; set; }
+        public List<Network> Networks { get; set; } = [];
 
         [JsonPropertyName("number_of_episodes")]
         public int? NumberOfEpisodes { get; set; }
@@ -158,7 +158,7 @@ namespace AniWorldReminder_API.Models
         public int? NumberOfSeasons { get; set; }
 
         [JsonPropertyName("origin_country")]
-        public List<string> OriginCountry { get; set; }
+        public List<string> OriginCountry { get; set; } = [];
 
         [JsonPropertyName("original_language")]
         public string? OriginalLanguage { get; set; }
@@ -176,16 +176,16 @@ namespace AniWorldReminder_API.Models
         public string? PosterPath { get; set; }
 
         [JsonPropertyName("production_companies")]
-        public List<ProductionCompany> ProductionCompanies { get; set; }
+        public List<ProductionCompany> ProductionCompanies { get; set; } = [];
 
         [JsonPropertyName("production_countries")]
-        public List<object> ProductionCountries { get; set; }
+        public List<object> ProductionCountries { get; set; } = [];
 
         [JsonPropertyName("seasons")]
-        public List<Season> Seasons { get; set; }
+        public List<Season> Seasons { get; set; } = [];
 
         [JsonPropertyName("spoken_languages")]
-        public List<SpokenLanguage> SpokenLanguages { get; set; }
+        public List<SpokenLanguage> SpokenLanguages { get; set; } = [];
 
         [JsonPropertyName("status")]
         public string? Status { get; set; }

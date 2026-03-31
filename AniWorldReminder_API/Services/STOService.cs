@@ -108,8 +108,8 @@ namespace AniWorldReminder_API.Services
                 if (string.IsNullOrEmpty(result.Link))
                     continue;
 
-                result.Name = result.Name.HtmlDecode();
-                result.Description = result.Description.HtmlDecode().HtmlDecode();
+                result.Name = result.Name?.HtmlDecode();
+                result.Description = result.Description?.HtmlDecode().HtmlDecode();
                 result.StreamingPortal = StreamingPortal;
                 result.Path = result.Link.Replace("/serie/stream", string.Empty).Replace("/serie", string.Empty);
 
@@ -242,6 +242,9 @@ namespace AniWorldReminder_API.Services
 
         private async Task PopulateCoverArtAsync(SearchResultModel searchResult)
         {
+            if (string.IsNullOrEmpty(searchResult.Name))
+                return;
+
             string html = await HttpClient.GetStringAsync($"{BaseUrl}{searchResult.Link}");
 
             HtmlDocument document = new();

@@ -4,7 +4,9 @@
     {
         Task<bool> InitAsync();
         Task<UserModel?> GetUserByTelegramIdAsync(string telegramChatId);
+        Task<UserModel> InsertUserAsync(string telegramChatId);
         Task<UserModel?> GetUserByUsernameAsync(string username);
+        Task UpdateVerifyTokenAsync(string telegramChatId, string token);
         Task DeleteVerifyTokenAsync(string telegramChatId);
         Task UpdateVerificationStatusAsync(string telegramChatId, VerificationStatus verificationStatus);
         Task SetVerifyStatusAsync(UserModel user);
@@ -16,6 +18,11 @@
         Task InsertUsersSeriesAsync(UsersSeriesModel usersSeries);
         Task DeleteUsersSeriesAsync(UsersSeriesModel usersSeries);
         Task<List<UsersSeriesModel>?> GetUsersSeriesAsync(string userId);
+        Task<List<SeriesReminderModel>?> GetUsersReminderSeriesAsync();
+        Task<List<EpisodeModel>?> GetSeriesEpisodesAsync(int seriesId);
+        Task InsertEpisodesAsync(int seriesId, List<EpisodeModel> episodes);
+        Task UpdateEpisodesAsync(int seriesId, List<EpisodeModel> episodes);
+        Task UpdateSeriesInfoAsync(int seriesId, SeriesInfoModel seriesInfo);
         Task<UserWebsiteSettings?> GetUserWebsiteSettings(string userId);
         Task UpdateUserWebsiteSettings(string userId, UserWebsiteSettings userWebsiteSettings);
         Task CreateUserWebsiteSettings(string userId);

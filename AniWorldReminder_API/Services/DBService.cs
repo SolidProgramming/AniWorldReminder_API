@@ -60,6 +60,30 @@ namespace AniWorldReminder_API.Services
 
             return await connection.QueryFirstOrDefaultAsync<UserModel>(query, parameters);
         }
+        public async Task<UserModel> InsertUserAsync(string telegramChatId)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "INSERT INTO users (TelegramChatId, StateId) VALUES (@TelegramChatId, @StateId); " +
+                           "select LAST_INSERT_ID()";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@TelegramChatId", telegramChatId },
+                { "@StateId", (int)UserState.Undefined }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+            int userId = await connection.ExecuteScalarAsync<int>(query, parameters);
+
+            return new UserModel
+            {
+                Id = userId,
+                TelegramChatId = telegramChatId,
+                StateId = UserState.Undefined,
+                Verified = VerificationStatus.NotVerified
+            };
+        }
         public async Task<UserModel?> GetUserByUsernameAsync(string username)
         {
             using MySqlConnection connection = new(DBConnectionString);
@@ -75,7 +99,7 @@ namespace AniWorldReminder_API.Services
 
             return await connection.QueryFirstOrDefaultAsync<UserModel>(query, parameters);
         }
-        public async Task DeleteVerifyTokenAsync(string telegramChatId)
+        public async Task UpdateVerifyTokenAsync(string telegramChatId, string token)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
@@ -84,6 +108,24 @@ namespace AniWorldReminder_API.Services
                            "WHERE users.TelegramChatId = @TelegramChatId";
 
             Dictionary<string, object> dictionary = new()
+            {
+                { "@VerifyToken", token },
+                { "@TelegramChatId", telegramChatId }
+            };
+
+            DynamicParameters parameters = new(dictionary);
+
+            await connection.ExecuteAsync(query, parameters);
+        }
+        public async Task DeleteVerifyTokenAsync(string telegramChatId)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "UPDATE users " +
+                           "SET users.VerifyToken = @VerifyToken " +
+                           "WHERE users.TelegramChatId = @TelegramChatId";
+
+            Dictionary<string, object?> dictionary = new()
             {
                 { "@VerifyToken", null },
                 { "@TelegramChatId", telegramChatId }
@@ -224,7 +266,7 @@ namespace AniWorldReminder_API.Services
             string query = "INSERT INTO series (StreamingPortalId, Name, SeasonCount, EpisodeCount, Path, CoverArtUrl) VALUES (@StreamingPortalId, @Name, @SeasonCount, @EpisodeCount, @SeriesPath, @CoverArtUrl); " +
                 "select LAST_INSERT_ID()";
 
-            Dictionary<string, object> dictionary = new()
+            Dictionary<string, object?> dictionary = new()
             {
                 { "@StreamingPortalId", streamingPortalId },
                 { "@Name", seriesInfo.Name },
@@ -238,7 +280,7 @@ namespace AniWorldReminder_API.Services
 
             return await connection.ExecuteScalarAsync<int>(query, parameters);
         }
-        private async Task InsertEpisodesAsync(int seriesId, List<EpisodeModel> episodes)
+        public async Task InsertEpisodesAsync(int seriesId, List<EpisodeModel> episodes)
         {
             using MySqlConnection connection = new(DBConnectionString);
 
@@ -257,7 +299,7 @@ namespace AniWorldReminder_API.Services
                     { "@Season",  episode.Season},
                     { "@Episode",  episode.Episode},
                     { "@Name",  episode.Name},
-                    { "LanguageFlag", episode.Languages }
+                    { "@LanguageFlag", episode.Languages }
                 };
 
                 DynamicParameters parameters = new(dictionary);
@@ -296,6 +338,92 @@ namespace AniWorldReminder_API.Services
                 }, parameters);
 
             return users_series.FirstOrDefault();
+        }
+        public async Task<List<SeriesReminderModel>?> GetUsersReminderSeriesAsync()
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "SELECT DISTINCT users.*, series.*, streamingportals.*, users_series.* " +
+                           "FROM users AS users " +
+                           "JOIN users_series ON users.id = users_series.UserId " +
+                           "JOIN series ON users_series.SeriesId = series.id " +
+                           "JOIN streamingportals ON series.StreamingPortalId = streamingportals.id";
+
+            IEnumerable<SeriesReminderModel> reminderSeries =
+                await connection.QueryAsync<UserModel, SeriesModel, StreamingPortalModel, UsersSeriesModel, SeriesReminderModel>
+                (query, (users, series, streamingPortals, usersSeries) =>
+                {
+                    series.StreamingPortal = streamingPortals.Name!.ToStreamingPortal();
+
+                    return new SeriesReminderModel()
+                    {
+                        User = users,
+                        Series = series,
+                        Language = usersSeries.LanguageFlag
+                    };
+                });
+
+            return reminderSeries.ToList();
+        }
+        public async Task<List<EpisodeModel>?> GetSeriesEpisodesAsync(int seriesId)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "SELECT episodes.* FROM episodes " +
+                           "JOIN series ON episodes.SeriesId = series.id " +
+                           "WHERE series.id = @SeriesId";
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@SeriesId", seriesId }
+            };
+
+            IEnumerable<EpisodeModel> episodes = await connection.QueryAsync<EpisodeModel>(query, dictionary);
+
+            return episodes.ToList();
+        }
+        public async Task UpdateEpisodesAsync(int seriesId, List<EpisodeModel> episodes)
+        {
+            if (!episodes.HasItems())
+                return;
+
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "UPDATE episodes " +
+                           "SET Name = @Name, LanguageFlag = @LanguageFlag " +
+                           "WHERE Id = @Id AND SeriesId = @SeriesId";
+
+            foreach (EpisodeModel episode in episodes)
+            {
+                Dictionary<string, object?> dictionary = new()
+                {
+                    { "@Id", episode.Id },
+                    { "@SeriesId", seriesId },
+                    { "@Name", episode.Name },
+                    { "@LanguageFlag", episode.Languages }
+                };
+
+                await connection.ExecuteAsync(query, dictionary);
+            }
+        }
+        public async Task UpdateSeriesInfoAsync(int seriesId, SeriesInfoModel seriesInfo)
+        {
+            using MySqlConnection connection = new(DBConnectionString);
+
+            string query = "UPDATE series " +
+                           "SET SeasonCount = @SeasonCount, EpisodeCount = @EpisodeCount " +
+                           "WHERE Id = @SeriesId";
+
+            int episodeCount = seriesInfo.Seasons.LastOrDefault()?.EpisodeCount ?? seriesInfo.EpisodeCount;
+
+            Dictionary<string, object> dictionary = new()
+            {
+                { "@SeriesId", seriesId },
+                { "@SeasonCount", seriesInfo.SeasonCount },
+                { "@EpisodeCount", episodeCount }
+            };
+
+            await connection.ExecuteAsync(query, dictionary);
         }
         public async Task InsertUsersSeriesAsync(UsersSeriesModel usersSeries)
         {
@@ -621,7 +749,7 @@ namespace AniWorldReminder_API.Services
         {
             using MySqlConnection connection = new(DBConnectionString);
 
-            Dictionary<string, object> dictionary = new()
+            Dictionary<string, object?> dictionary = new()
             {
                 { "@UserId", user.Id },
                 { "@Interval", downloaderPreferences.Interval },
@@ -651,7 +779,7 @@ namespace AniWorldReminder_API.Services
         {
             using MySqlConnection connection = new(DBConnectionString);
 
-            Dictionary<string, object> dictionary = new()
+            Dictionary<string, object?> dictionary = new()
             {
                 { "@UserId", user.Id },
                 { "@Interval", downloaderPreferences.Interval },
@@ -709,7 +837,7 @@ namespace AniWorldReminder_API.Services
 
             string query = "INSERT INTO movie_download (DirectUrl, UsersId) VALUES (@DirectUrl, @UsersId)";
 
-            Dictionary<string, object> dictionary = new()
+            Dictionary<string, object?> dictionary = new()
             {
                 { "@DirectUrl",  download.DirectUrl},
                 { "@UsersId",  download.UserId},

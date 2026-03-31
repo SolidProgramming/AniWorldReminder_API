@@ -15,7 +15,7 @@ namespace AniWorldReminder_API.Misc
         /// <summary>
         ///     Returns only the first node result from the list
         /// </summary>
-        public HtmlNode Result
+        public HtmlNode? Result
         {
             get
             {
@@ -125,9 +125,9 @@ namespace AniWorldReminder_API.Misc
         {
             List<HtmlNode> nodes = [];
 
-            for (int i = 0; i < _nodes?.Count; i++)
+            for (int i = 0; i < _nodes.Count; i++)
             {
-                List<HtmlNode> newNodes = _nodes[i].SelectNodes(query)?.ToList();
+                List<HtmlNode>? newNodes = _nodes[i].SelectNodes(query)?.ToList();
 
                 if (newNodes is null) continue;
 

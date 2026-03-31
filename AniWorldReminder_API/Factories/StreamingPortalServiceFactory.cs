@@ -30,9 +30,6 @@
                 case StreamingPortal.AniWorld:
                     ILogger<AniWorldService> loggerAniWorld = sp.GetRequiredService<ILogger<AniWorldService>>();
                     return new AniWorldService(loggerAniWorld, httpClientFactory, tmdbService);
-                case StreamingPortal.MegaKino:
-                    ILogger<MegaKinoService> loggerMegaKino = sp.GetRequiredService<ILogger<MegaKinoService>>();
-                    return new MegaKinoService(loggerMegaKino, httpClientFactory, "https://megakino.ws", "MegaKino", streamingPortal);
                 default:
                     throw new NotImplementedException();
             }

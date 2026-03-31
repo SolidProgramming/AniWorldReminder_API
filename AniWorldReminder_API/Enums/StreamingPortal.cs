@@ -4,7 +4,6 @@
     {
         Undefined = 0,
         AniWorld = 1,
-        STO = 2,
-        MegaKino = 3
+        STO = 2
     }
 }

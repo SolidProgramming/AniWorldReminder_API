@@ -6,14 +6,17 @@
         {
             { "AniWorld", StreamingPortal.AniWorld },
             { "STO", StreamingPortal.STO },
-            { "MegaKino", StreamingPortal.MegaKino },
         };
 
         public static async Task<(bool reachable, string? html)> GetHosterReachableAsync(IStreamingPortalService streamingPortalService)
         {
             try
             {
-                HttpClient httpClient = streamingPortalService.GetHttpClient();
+                HttpClient? httpClient = streamingPortalService.GetHttpClient();
+
+                if (httpClient is null)
+                    return (false, null);
+
                 HttpResponseMessage responseMessage = await httpClient.GetAsync(new Uri(streamingPortalService.BaseUrl));
 
                 if (!responseMessage.IsSuccessStatusCode)
