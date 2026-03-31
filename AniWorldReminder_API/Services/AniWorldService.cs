@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 namespace AniWorldReminder_API.Services
 {
     public class AniWorldService : StreamingPortalServiceBase<AniWorldService>
-    {        
+    {
         private const string PopularHtmlSearchQuery = "//div[@class='preview rows sevenCols']/div[@class='coverListItem']/a";
         private const string DescriptionNodeQuery = "seri_des";
         private const string TitleNodeQuery = "//div[@class='series-title']/h1/span";
@@ -22,11 +22,6 @@ namespace AniWorldReminder_API.Services
 
         public override async Task<List<SearchResultModel>?> GetPopularAsync()
         {
-            (bool reachable, string? _) = await StreamingPortalHelper.GetHosterReachableAsync(this);
-
-            if (!reachable)
-                return null;
-
             HttpResponseMessage response = await HttpClient.GetAsync(new Uri(BaseUrl));
 
             if (!response.IsSuccessStatusCode)
@@ -76,11 +71,6 @@ namespace AniWorldReminder_API.Services
 
         public override async Task<List<SearchResultModel>?> GetMediaAsync(string seriesName, bool strictSearch = false)
         {
-            (bool reachable, string? _) = await StreamingPortalHelper.GetHosterReachableAsync(this);
-
-            if (!reachable)
-                return null;
-
             if (seriesName.Contains("'"))
             {
                 seriesName = seriesName.Split('\'')[0];

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.IdentityModel.Tokens;
 using System.Net;
 using System.Text;
@@ -30,6 +31,22 @@ namespace AniWorldReminder_API
                 .UseRecommendedSerializerSettings()
                 .UseMemoryStorage());
             builder.Services.AddHangfireServer();
+            builder.Services.AddTransient<AdminHttpFailureNotificationHandler>();
+            builder.Services.ConfigureHttpClientDefaults(httpClientBuilder =>
+            {
+                httpClientBuilder.ConfigureHttpClient(client =>
+                {
+                    client.Timeout = Timeout.InfiniteTimeSpan;
+                });
+                httpClientBuilder.AddHttpMessageHandler<AdminHttpFailureNotificationHandler>();
+
+                httpClientBuilder.AddResilienceHandler("default", (pipeline, context) =>
+                {
+                    ILoggerFactory loggerFactory = context.ServiceProvider.GetRequiredService<ILoggerFactory>();
+
+                    HttpResiliencePipelineConfigurator.Configure(pipeline, loggerFactory, context.BuilderName);
+                });
+            });
 
             JwtSettingsModel? jwtSettings = SettingsHelper.ReadSettings<JwtSettingsModel>();
 
@@ -62,6 +79,8 @@ namespace AniWorldReminder_API
             }
             builder.Services.AddSingleton<IAuthService, AuthService>();
             builder.Services.AddSingleton<IDBService, DBService>();
+            builder.Services.AddSingleton<IDelayExecutor, TaskDelayExecutor>();
+            builder.Services.AddSingleton<IEpisodeReminderDelayService, EpisodeReminderDelayService>();
             builder.Services.AddSingleton<Interfaces.IHttpClientFactory, HttpClientFactory>();
             builder.Services.AddSingleton<ITelegramBotService, TelegramBotService>();
             builder.Services.AddSingleton<ITMDBService, TMDBService>();
@@ -78,6 +97,7 @@ namespace AniWorldReminder_API
             });
 
             WebApplication? app = builder.Build();
+            MethodTimeLogger.Configure(app.Services.GetRequiredService<ILoggerFactory>());
 
             IAuthService authService = app.Services.GetRequiredService<IAuthService>();
 
@@ -92,14 +112,22 @@ namespace AniWorldReminder_API
             Interfaces.IHttpClientFactory? httpClientFactory = app.Services.GetRequiredService<Interfaces.IHttpClientFactory>();
             HttpClient? noProxyClient = httpClientFactory.CreateHttpClient<Program>();
 
-            (bool successNoProxy, string? ipv4NoProxy) = await noProxyClient.GetIPv4();
-            if (!successNoProxy)
+            try
             {
-                app.Logger.LogError($"{DateTime.Now} | HttpClient could not retrieve WAN IP Address. Shutting down...");
-                return;
+                (bool successNoProxy, string? ipv4NoProxy) = await noProxyClient.GetIPv4();
+                if (!successNoProxy)
+                {
+                    app.Logger.LogWarning("{Timestamp} | HttpClient could not retrieve WAN IP Address. Continuing startup without it.", DateTime.Now);
+                }
+                else
+                {
+                    app.Logger.LogInformation("{Timestamp} | Your WAN IP: {WanIp}", DateTime.Now, ipv4NoProxy);
+                }
             }
-
-            app.Logger.LogInformation($"{DateTime.Now} | Your WAN IP: {ipv4NoProxy}");
+            catch (Exception ex)
+            {
+                app.Logger.LogWarning(ex, "{Timestamp} | Retrieving WAN IP failed. Continuing startup.", DateTime.Now);
+            }
 
             ProxyAccountModel? proxyAccount = SettingsHelper.ReadSettings<ProxyAccountModel>();
             WebProxy? proxy = null;
@@ -112,11 +140,14 @@ namespace AniWorldReminder_API
             IStreamingPortalService aniWorldService = streamingPortalServiceFactory.GetService(StreamingPortal.AniWorld);
             IStreamingPortalService sTOService = streamingPortalServiceFactory.GetService(StreamingPortal.STO);
 
-            if (!await aniWorldService.InitAsync(proxy))
-                return;
+            bool aniWorldAvailable = await TryInitializeStreamingPortalAsync(aniWorldService, proxy);
+            bool stoAvailable = await TryInitializeStreamingPortalAsync(sTOService, proxy);
 
-            if (!await sTOService.InitAsync(proxy))
+            if (!aniWorldAvailable && !stoAvailable)
+            {
+                app.Logger.LogCritical("{Timestamp} | No streaming portal could be initialized. Shutting down...", DateTime.Now);
                 return;
+            }
 
             await InitPopularSeriesCache();
 
@@ -142,44 +173,42 @@ namespace AniWorldReminder_API
             if (appSettings?.EnableEpisodeReminderJob != false)
             {
                 IRecurringJobManager recurringJobManager = app.Services.GetRequiredService<IRecurringJobManager>();
+                IBackgroundJobClient backgroundJobClient = app.Services.GetRequiredService<IBackgroundJobClient>();
 
                 recurringJobManager.AddOrUpdate<UpsertEpisodeInfoJob>(
                     "episode-reminder-scan",
                     job => job.ExecuteAsync(),
-                    appSettings?.EpisodeReminderCron ?? "*/15 * * * *",
+                    appSettings?.EpisodeReminderCron ?? "*/60 * * * *",
                     new RecurringJobOptions
                     {
                         TimeZone = TimeZoneInfo.Local
                     });
+
+                backgroundJobClient.Enqueue<UpsertEpisodeInfoJob>(job => job.ExecuteAsync());
             }
 
             async Task InitPopularSeriesCache()
             {
-                app.Logger.LogInformation($"{DateTime.Now} | Fetching cache data of popular series...");
+                app.Logger.LogInformation("{Timestamp} | Fetching cache data of popular series...", DateTime.Now);
 
                 ICacheHelperService cacheHelperService = app.Services.GetRequiredService<ICacheHelperService>();
-
-                List<Task<List<SearchResultModel>?>> tasks = [];
-
-                tasks.Add(aniWorldService.GetPopularAsync());
-                tasks.Add(sTOService.GetPopularAsync());
-
-                List<SearchResultModel>?[] taskResults = await Task.WhenAll(tasks);
                 List<SearchResultModel> allPopularSeries = [];
 
-                foreach (List<SearchResultModel>? popularSeries in taskResults)
-                {
-                    if (popularSeries.HasItems())
-                        allPopularSeries.AddRange(popularSeries!);
-                }
+                await AddPortalResultsAsync(
+                    allPopularSeries,
+                    TryExecutePortalRequestIfAvailableAsync(aniWorldAvailable, aniWorldService, "popular cache warmup", () => aniWorldService.GetPopularAsync()),
+                    TryExecutePortalRequestIfAvailableAsync(stoAvailable, sTOService, "popular cache warmup", () => sTOService.GetPopularAsync()));
 
                 if (!allPopularSeries.HasItems())
+                {
+                    app.Logger.LogWarning("{Timestamp} | Popular series cache warmup returned no data from any portal.", DateTime.Now);
                     return;
+                }
 
                 allPopularSeries.Shuffle();
 
-                //set cache expiration at 12 hours
                 await cacheHelperService.SetCacheAsync(Global.Cache.Path.PopularSeries, allPopularSeries, 12 * 60);
+                app.Logger.LogInformation("{Timestamp} | Popular series cache warmup completed with {Count} items.", DateTime.Now, allPopularSeries.Count);
             }
 
             app.MapGet("/getSeries", [AllowAnonymous] async (string seriesName, MediaType mediaType) =>
@@ -188,18 +217,10 @@ namespace AniWorldReminder_API
 
                 if (mediaType.HasFlag(MediaType.Series))
                 {
-                    List<Task<List<SearchResultModel>?>> tasks = [];
-
-                    tasks.Add(aniWorldService.GetMediaAsync(seriesName));
-                    tasks.Add(sTOService.GetMediaAsync(seriesName));
-
-                    List<SearchResultModel>?[] taskResults = await Task.WhenAll(tasks);
-
-                    foreach (List<SearchResultModel>? searchResult in taskResults)
-                    {
-                        if (searchResult.HasItems())
-                            allSearchResults.AddRange(searchResult!);
-                    }
+                    await AddPortalResultsAsync(
+                        allSearchResults,
+                        TryExecutePortalRequestIfAvailableAsync(aniWorldAvailable, aniWorldService, $"search '{seriesName}'", () => aniWorldService.GetMediaAsync(seriesName)),
+                        TryExecutePortalRequestIfAvailableAsync(stoAvailable, sTOService, $"search '{seriesName}'", () => sTOService.GetMediaAsync(seriesName)));
                 }
 
                 return Results.Ok(allSearchResults);
@@ -226,10 +247,16 @@ namespace AniWorldReminder_API
                 switch (streamingPortal)
                 {
                     case StreamingPortal.AniWorld:
-                        seriesInfo = await aniWorldService.GetMediaInfoAsync(seriesPath);
+                        if (!aniWorldAvailable)
+                            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+                        seriesInfo = await TryExecutePortalRequestAsync(aniWorldService, $"series info '{seriesPath}'", () => aniWorldService.GetMediaInfoAsync(seriesPath));
                         break;
                     case StreamingPortal.STO:
-                        seriesInfo = await sTOService.GetMediaInfoAsync(seriesPath);
+                        if (!stoAvailable)
+                            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+                        seriesInfo = await TryExecutePortalRequestAsync(sTOService, $"series info '{seriesPath}'", () => sTOService.GetMediaInfoAsync(seriesPath));
                         break;
                     case StreamingPortal.Undefined:
                     default:
@@ -259,23 +286,15 @@ namespace AniWorldReminder_API
 
                 if (cachedPopularSeries is not null)
                     return Results.Ok(cachedPopularSeries);
-
-                List<Task<List<SearchResultModel>?>> tasks = [];
-
-                tasks.Add(aniWorldService.GetPopularAsync());
-                tasks.Add(sTOService.GetPopularAsync());
-
-                List<SearchResultModel>?[] taskResults = await Task.WhenAll(tasks);
                 List<SearchResultModel> allPopularSeries = [];
 
-                foreach (List<SearchResultModel>? popularSeries in taskResults)
-                {
-                    if (popularSeries.HasItems())
-                        allPopularSeries.AddRange(popularSeries!);
-                }
+                await AddPortalResultsAsync(
+                    allPopularSeries,
+                    TryExecutePortalRequestIfAvailableAsync(aniWorldAvailable, aniWorldService, "popular series request", () => aniWorldService.GetPopularAsync()),
+                    TryExecutePortalRequestIfAvailableAsync(stoAvailable, sTOService, "popular series request", () => sTOService.GetPopularAsync()));
 
                 if (!allPopularSeries.HasItems())
-                    return Results.NotFound();
+                    return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
 
                 allPopularSeries.Shuffle();
 
@@ -288,6 +307,83 @@ namespace AniWorldReminder_API
                 operation.Description = "Returns a shuffled list of popular series from AniWorld and STO portals. Results are cached for 12 hours.";
                 return Task.CompletedTask;
             });
+
+            async Task<bool> TryInitializeStreamingPortalAsync(IStreamingPortalService streamingPortalService, WebProxy? configuredProxy)
+            {
+                try
+                {
+                    bool initialized = await streamingPortalService.InitAsync(configuredProxy);
+
+                    if (!initialized)
+                    {
+                        app.Logger.LogWarning(
+                            "{Timestamp} | {PortalName} service could not be initialized. Requests for this portal may be unavailable.",
+                            DateTime.Now,
+                            streamingPortalService.Name);
+                    }
+
+                    return initialized;
+                }
+                catch (Exception ex)
+                {
+                    app.Logger.LogError(
+                        ex,
+                        "{Timestamp} | {PortalName} service initialization failed unexpectedly.",
+                        DateTime.Now,
+                        streamingPortalService.Name);
+
+                    return false;
+                }
+            }
+
+            async Task<T?> TryExecutePortalRequestAsync<T>(IStreamingPortalService streamingPortalService, string operationName, Func<Task<T?>> action)
+            {
+                try
+                {
+                    return await action();
+                }
+                catch (Exception ex)
+                {
+                    app.Logger.LogError(
+                        ex,
+                        "{Timestamp} | {PortalName} request failed during {OperationName}.",
+                        DateTime.Now,
+                        streamingPortalService.Name,
+                        operationName);
+
+                    return default;
+                }
+            }
+
+            async Task<T?> TryExecutePortalRequestIfAvailableAsync<T>(bool portalAvailable, IStreamingPortalService streamingPortalService, string operationName, Func<Task<T?>> action)
+            {
+                if (!portalAvailable)
+                {
+                    app.Logger.LogDebug(
+                        "{Timestamp} | Skipping {PortalName} request during {OperationName} because the portal is marked unavailable.",
+                        DateTime.Now,
+                        streamingPortalService.Name,
+                        operationName);
+
+                    return default;
+                }
+
+                return await TryExecutePortalRequestAsync(streamingPortalService, operationName, action);
+            }
+
+            async Task AddPortalResultsAsync(List<SearchResultModel> target, params Task<List<SearchResultModel>?>[] tasks)
+            {
+                if (tasks.Length == 0)
+                    return;
+
+                List<SearchResultModel>?[] results = await Task.WhenAll(tasks);
+
+                foreach (List<SearchResultModel>? result in results)
+                {
+                    if (result.HasItems())
+                        target.AddRange(result!);
+                }
+            }
 
             app.MapPost("/verify", async ([FromBody] VerifyRequestModel verifyRequest) =>
             {

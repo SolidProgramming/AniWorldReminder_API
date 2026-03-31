@@ -7,37 +7,6 @@
             { "AniWorld", StreamingPortal.AniWorld },
             { "STO", StreamingPortal.STO },
         };
-
-        public static async Task<(bool reachable, string? html)> GetHosterReachableAsync(IStreamingPortalService streamingPortalService)
-        {
-            try
-            {
-                HttpClient? httpClient = streamingPortalService.GetHttpClient();
-
-                if (httpClient is null)
-                    return (false, null);
-
-                HttpResponseMessage responseMessage = await httpClient.GetAsync(new Uri(streamingPortalService.BaseUrl));
-
-                if (!responseMessage.IsSuccessStatusCode)
-                    return (false, null);
-
-                string html = await responseMessage.Content.ReadAsStringAsync();
-
-                if (string.IsNullOrEmpty(html) || CaptchaRequired(html))
-                    return (false, null);
-
-                return (true, html);
-            }
-            catch (Exception)
-            {
-                return (false, null);
-            }
-        }
-        private static bool CaptchaRequired(string html)
-        {
-            return html.Contains("Browser Check");
-        }
         public static StreamingPortal GetStreamingPortalByName(string streamingPortalName)
         {
             if (StreamingPortals.Any(_ => _.Key == streamingPortalName))

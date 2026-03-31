@@ -1,56 +1,79 @@
-﻿using System.Net;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Resilience;
+using System.Net;
+using Polly;
 
 namespace AniWorldReminder_API.Factories
 {
     public class HttpClientFactory : Interfaces.IHttpClientFactory
     {
-        private Dictionary<Type, HttpClient> HttpClients = [];
+        private readonly System.Net.Http.IHttpClientFactory httpClientFactory;
+        private readonly IServiceProvider serviceProvider;
+        private readonly ILoggerFactory loggerFactory;
+
+        public HttpClientFactory(System.Net.Http.IHttpClientFactory httpClientFactory, IServiceProvider serviceProvider, ILoggerFactory loggerFactory)
+        {
+            this.httpClientFactory = httpClientFactory;
+            this.serviceProvider = serviceProvider;
+            this.loggerFactory = loggerFactory;
+        }
 
         public HttpClient CreateHttpClient<T>(bool defaultRequestHeaders = true)
         {
-            if (HttpClients.ContainsKey(typeof(T)))
-                return HttpClients[typeof(T)];
-
-            return _CreateHttpClient<T>(defaultRequestHeaders);
+            HttpClient httpClient = httpClientFactory.CreateClient(typeof(T).FullName ?? typeof(T).Name);
+            ApplyDefaultConfiguration(httpClient, defaultRequestHeaders);
+            return httpClient;
         }
 
         public HttpClient CreateHttpClient<T>(WebProxy proxy, bool defaultRequestHeaders = true)
         {
-            if (HttpClients.ContainsKey(typeof(T)))
-                return HttpClients[typeof(T)];
-
-            return _CreateHttpClient<T>(defaultRequestHeaders, proxy);
-        }
-
-        #region private methods
-        private HttpClient _CreateHttpClient<T>(bool defaultRequestHeaders, WebProxy? proxy = null)
-        {
             CookieContainer cookieContainer = new();
+            string clientName = typeof(T).FullName ?? typeof(T).Name;
 
             HttpClientHandler clientHandler = new()
             {
-                UseProxy = proxy is not null,
+                UseProxy = true,
                 Proxy = proxy,
                 MaxConnectionsPerServer = 1,
                 UseCookies = true,
                 CookieContainer = cookieContainer
             };
 
-            HttpClient httpClient = new(clientHandler)
+            ResiliencePipelineBuilder<HttpResponseMessage> pipelineBuilder = new();
+            HttpResiliencePipelineConfigurator.Configure(pipelineBuilder, loggerFactory, clientName);
+
+            ResilienceHandler resilienceHandler = new(pipelineBuilder.Build())
+            {
+                InnerHandler = clientHandler
+            };
+
+            AdminHttpFailureNotificationHandler adminNotificationHandler = ActivatorUtilities.CreateInstance<AdminHttpFailureNotificationHandler>(serviceProvider);
+            adminNotificationHandler.InnerHandler = resilienceHandler;
+
+            HttpClient httpClient = new(adminNotificationHandler)
             {
                 Timeout = TimeSpan.FromMilliseconds(Timeout.Infinite)
             };
 
-            if (defaultRequestHeaders)
-            {
-                httpClient.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
-                httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 101.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 OPR/91.0.4516.72");
-            }
-
-            HttpClients.Add(typeof(T), httpClient);
+            ApplyDefaultConfiguration(httpClient, defaultRequestHeaders);
 
             return httpClient;
         }
-        #endregion
+
+        private static void ApplyDefaultConfiguration(HttpClient httpClient, bool defaultRequestHeaders)
+        {
+            if (!defaultRequestHeaders)
+                return;
+
+            if (!httpClient.DefaultRequestHeaders.Contains("X-Requested-With"))
+            {
+                httpClient.DefaultRequestHeaders.Add("X-Requested-With", "XMLHttpRequest");
+            }
+
+            if (!httpClient.DefaultRequestHeaders.UserAgent.Any())
+            {
+                httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 101.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36 OPR/91.0.4516.72");
+            }
+        }
     }
 }

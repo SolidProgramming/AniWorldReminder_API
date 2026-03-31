@@ -1,22 +1,25 @@
 using Hangfire;
+using MethodTimer;
 using System.Text;
 
 namespace AniWorldReminder_API.Classes
 {
-    [DisableConcurrentExecution(timeoutInSeconds: 1800)]
+    [DisableConcurrentExecution(timeoutInSeconds: 15)]
     [AutomaticRetry(Attempts = 3)]
-    public class UpsertEpisodeInfoJob(ILogger<UpsertEpisodeInfoJob> logger, IStreamingPortalServiceFactory streamingPortalServiceFactory, IDBService dbService, ITelegramBotService telegramBotService)
+    public class UpsertEpisodeInfoJob(ILogger<UpsertEpisodeInfoJob> logger, IStreamingPortalServiceFactory streamingPortalServiceFactory, IDBService dbService, ITelegramBotService telegramBotService, IEpisodeReminderDelayService episodeReminderDelayService)
     {
         private readonly IStreamingPortalService aniWorldService = streamingPortalServiceFactory.GetService(StreamingPortal.AniWorld);
         private readonly IStreamingPortalService stoService = streamingPortalServiceFactory.GetService(StreamingPortal.STO);
 
+        [Time]
         public async Task ExecuteAsync()
         {
             TelegramBotSettingsModel? botSettings = SettingsHelper.ReadSettings<TelegramBotSettingsModel>();
+            AppSettingsModel? appSettings = SettingsHelper.ReadSettings<AppSettingsModel>();
 
             try
             {
-                await CheckForNewEpisodesAsync(botSettings);
+                await CheckForNewEpisodesAsync(botSettings, appSettings);                
             }
             catch (Exception ex)
             {
@@ -25,7 +28,7 @@ namespace AniWorldReminder_API.Classes
             }
         }
 
-        private async Task CheckForNewEpisodesAsync(TelegramBotSettingsModel? botSettings)
+        private async Task CheckForNewEpisodesAsync(TelegramBotSettingsModel? botSettings, AppSettingsModel? appSettings)
         {
             List<SeriesReminderModel>? userReminderSeries = await dbService.GetUsersReminderSeriesAsync();
 
@@ -43,57 +46,69 @@ namespace AniWorldReminder_API.Classes
                 if (seriesReminder.Series is null)
                     continue;
 
-                logger.LogInformation("{Timestamp} | Scanning for changes: {SeriesName}", DateTime.Now, seriesReminder.Series.Name);
-
-                (bool updateAvailable, SeriesInfoModel? seriesInfo, List<EpisodeModel>? languageUpdateEpisodes, List<EpisodeModel>? newEpisodes, List<EpisodeModel>? namesUpdatedEpisodes) =
-                    await UpdateNeededAsync(seriesReminder);
-
-                if (!updateAvailable || seriesInfo is null)
-                    continue;
-
-                List<EpisodeModel> changedEpisodes = [];
-
-                if (namesUpdatedEpisodes.HasItems())
+                try
                 {
-                    await dbService.UpdateEpisodesAsync(seriesReminder.Series.Id, namesUpdatedEpisodes!);
-                    await SendAdminNotificationAsync(
-                        botSettings,
-                        namesUpdatedEpisodes!,
-                        $"Es wurden folgende Episoden fuer <b>{seriesReminder.Series.Name}</b> mit <b>Namens-Updates</b> gefunden und geupdated!");
-                }
+                    logger.LogInformation("{Timestamp} | Scanning for changes: {SeriesName}", DateTime.Now, seriesReminder.Series.Name);
 
-                if (languageUpdateEpisodes.HasItems())
+                    (bool updateAvailable, SeriesInfoModel? seriesInfo, List<EpisodeModel>? languageUpdateEpisodes, List<EpisodeModel>? newEpisodes, List<EpisodeModel>? namesUpdatedEpisodes) =
+                        await UpdateNeededAsync(seriesReminder);
+
+                    if (!updateAvailable || seriesInfo is null)
+                        continue;
+
+                    List<EpisodeModel> changedEpisodes = [];
+
+                    if (namesUpdatedEpisodes.HasItems())
+                    {
+                        await dbService.UpdateEpisodesAsync(seriesReminder.Series.Id, namesUpdatedEpisodes!);
+                        await SendAdminNotificationAsync(
+                            botSettings,
+                            namesUpdatedEpisodes!,
+                            $"Es wurden folgende Episoden fuer <b>{seriesReminder.Series.Name}</b> mit <b>Namens-Updates</b> gefunden und geupdated!");
+                    }
+
+                    if (languageUpdateEpisodes.HasItems())
+                    {
+                        await dbService.UpdateEpisodesAsync(seriesReminder.Series.Id, languageUpdateEpisodes!);
+                        changedEpisodes.AddRange(languageUpdateEpisodes!);
+
+                        await SendAdminNotificationAsync(
+                            botSettings,
+                            languageUpdateEpisodes!,
+                            $"Es wurden folgende Episoden fuer <b>{seriesReminder.Series.Name}</b> mit <b>Sprach-Updates</b> gefunden und geupdated!");
+                    }
+
+                    if (newEpisodes.HasItems())
+                    {
+                        await dbService.InsertEpisodesAsync(seriesReminder.Series.Id, newEpisodes!);
+                        await dbService.UpdateSeriesInfoAsync(seriesReminder.Series.Id, seriesInfo);
+                        changedEpisodes.AddRange(newEpisodes!);
+
+                        await SendAdminNotificationAsync(
+                            botSettings,
+                            newEpisodes!,
+                            $"Es wurden neue Episoden fuer <b>{seriesReminder.Series.Name}</b> gefunden und hinzugefuegt!");
+                    }
+
+                    if (!changedEpisodes.HasItems())
+                        continue;
+
+                    logger.LogInformation("{Timestamp} | Changes found for: {SeriesName} | {Count}x", DateTime.Now, seriesReminder.Series.Name, changedEpisodes.Count);
+                    await SendNotificationsAsync(botSettings, appSettings, seriesInfo, group, changedEpisodes);
+                }
+                catch (Exception ex)
                 {
-                    await dbService.UpdateEpisodesAsync(seriesReminder.Series.Id, languageUpdateEpisodes!);
-                    changedEpisodes.AddRange(languageUpdateEpisodes!);
-
-                    await SendAdminNotificationAsync(
-                        botSettings,
-                        languageUpdateEpisodes!,
-                        $"Es wurden folgende Episoden fuer <b>{seriesReminder.Series.Name}</b> mit <b>Sprach-Updates</b> gefunden und geupdated!");
+                    logger.LogError(ex, "Episode scan for series {SeriesName} failed.", seriesReminder.Series.Name);
+                    await SendAdminErrorAsync(botSettings, ex);
                 }
-
-                if (newEpisodes.HasItems())
+                finally
                 {
-                    await dbService.InsertEpisodesAsync(seriesReminder.Series.Id, newEpisodes!);
-                    await dbService.UpdateSeriesInfoAsync(seriesReminder.Series.Id, seriesInfo);
-                    changedEpisodes.AddRange(newEpisodes!);
-
-                    await SendAdminNotificationAsync(
-                        botSettings,
-                        newEpisodes!,
-                        $"Es wurden neue Episoden fuer <b>{seriesReminder.Series.Name}</b> gefunden und hinzugefuegt!");
+                    await episodeReminderDelayService.DelayAfterSeriesScanAsync(appSettings);
                 }
-
-                if (!changedEpisodes.HasItems())
-                    continue;
-
-                logger.LogInformation("{Timestamp} | Changes found for: {SeriesName} | {Count}x", DateTime.Now, seriesReminder.Series.Name, changedEpisodes.Count);
-                await SendNotificationsAsync(botSettings, seriesInfo, group, changedEpisodes);
             }
         }
 
-        private async Task SendNotificationsAsync(TelegramBotSettingsModel? botSettings, SeriesInfoModel seriesInfo, IGrouping<int, SeriesReminderModel> seriesGroup, List<EpisodeModel> changedEpisodes)
+        private async Task SendNotificationsAsync(TelegramBotSettingsModel? botSettings, AppSettingsModel? appSettings, SeriesInfoModel seriesInfo, IGrouping<int, SeriesReminderModel> seriesGroup, List<EpisodeModel> changedEpisodes)
         {
             const int maxCount = 5;
             string? seriesName = seriesGroup.First().Series?.Name;
@@ -153,6 +168,7 @@ namespace AniWorldReminder_API.Classes
 
                 string usernameText = string.IsNullOrEmpty(reminder.User.Username) ? "N/A" : reminder.User.Username;
                 logger.LogInformation("{Timestamp} | Sent 'New Episodes' notification to chat: {Username}|{ChatId}", DateTime.Now, usernameText, reminder.User.TelegramChatId);
+                await episodeReminderDelayService.DelayAfterNotificationAsync(appSettings);
             }
 
             if (downloadInserted && TryGetAdminChatId(botSettings, out long adminChatId))

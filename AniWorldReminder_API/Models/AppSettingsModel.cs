@@ -18,5 +18,11 @@ namespace AniWorldReminder_API.Models
 
         [JsonPropertyName("HangfireDashboardPath")]
         public string HangfireDashboardPath { get; set; } = "/hangfire";
+
+        [JsonPropertyName("EpisodeReminderSeriesDelayMs")]
+        public int EpisodeReminderSeriesDelayMs { get; set; } = 1500;
+
+        [JsonPropertyName("EpisodeReminderNotificationDelayMs")]
+        public int EpisodeReminderNotificationDelayMs { get; set; } = 500;
     }
 }
