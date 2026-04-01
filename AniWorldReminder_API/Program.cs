@@ -178,7 +178,7 @@ namespace AniWorldReminder_API
                 recurringJobManager.AddOrUpdate<UpsertEpisodeInfoJob>(
                     "episode-reminder-scan",
                     job => job.ExecuteAsync(),
-                    appSettings?.EpisodeReminderCron ?? "*/60 * * * *",
+                    appSettings?.EpisodeReminderCron,
                     new RecurringJobOptions
                     {
                         TimeZone = TimeZoneInfo.Local

@@ -1,5 +1,7 @@
 using Hangfire;
 using MethodTimer;
+using Mysqlx.Prepare;
+using System.Reflection;
 using System.Text;
 
 namespace AniWorldReminder_API.Classes
@@ -14,12 +16,19 @@ namespace AniWorldReminder_API.Classes
         [Time]
         public async Task ExecuteAsync()
         {
+            MethodBase? methodBase = typeof(UpsertEpisodeInfoJob).GetMethod(nameof(ExecuteAsync));
+
+            if (methodBase is not null)
+            {
+                MethodTimeLogger.LogExecution(methodBase);
+            }
+
             TelegramBotSettingsModel? botSettings = SettingsHelper.ReadSettings<TelegramBotSettingsModel>();
             AppSettingsModel? appSettings = SettingsHelper.ReadSettings<AppSettingsModel>();
 
             try
             {
-                await CheckForNewEpisodesAsync(botSettings, appSettings);                
+                await CheckForNewEpisodesAsync(botSettings, appSettings);
             }
             catch (Exception ex)
             {

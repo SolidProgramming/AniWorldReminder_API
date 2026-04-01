@@ -11,7 +11,7 @@ namespace AniWorldReminder_API.Models
         public bool EnableEpisodeReminderJob { get; set; } = true;
 
         [JsonPropertyName("EpisodeReminderCron")]
-        public string EpisodeReminderCron { get; set; } = "*/15 * * * *";
+        public string EpisodeReminderCron { get; set; } = "0 * * * *";
 
         [JsonPropertyName("EnableHangfireDashboard")]
         public bool EnableHangfireDashboard { get; set; }
