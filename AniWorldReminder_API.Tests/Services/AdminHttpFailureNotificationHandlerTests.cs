@@ -1,17 +1,17 @@
 using AniWorldReminder_API.Interfaces;
 using AniWorldReminder_API.Services;
 using Microsoft.Extensions.Logging.Abstractions;
+using NUnit.Framework;
 using System.Net;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
-using Xunit;
 
 namespace AniWorldReminder_API.Tests.Services
 {
     public class AdminHttpFailureNotificationHandlerTests
     {
-        [Fact]
+        [Test]
         public async Task SendAsync_SendsAdminTelegramMessage_OnTransientHttpFailureResponse()
         {
             using CurrentDirectoryScope _ = CurrentDirectoryScope.CreateWithSettingsFile(adminChat: "123456");
@@ -24,15 +24,15 @@ namespace AniWorldReminder_API.Tests.Services
                 new HttpRequestMessage(HttpMethod.Get, "https://example.com/episodes"),
                 CancellationToken.None);
 
-            Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
-            Assert.Single(telegramBotService.Messages);
-            Assert.Equal(123456L, telegramBotService.Messages[0].ChatId);
-            Assert.Contains("HTTP request failed after all retries", telegramBotService.Messages[0].Text);
-            Assert.Contains("GET https://example.com/episodes", telegramBotService.Messages[0].Text);
-            Assert.Contains("HTTP 500 InternalServerError", telegramBotService.Messages[0].Text);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.InternalServerError));
+            Assert.That(telegramBotService.Messages, Has.Count.EqualTo(1));
+            Assert.That(telegramBotService.Messages[0].ChatId, Is.EqualTo(123456L));
+            Assert.That(telegramBotService.Messages[0].Text, Does.Contain("HTTP request failed after all retries"));
+            Assert.That(telegramBotService.Messages[0].Text, Does.Contain("GET https://example.com/episodes"));
+            Assert.That(telegramBotService.Messages[0].Text, Does.Contain("HTTP 500 InternalServerError"));
         }
 
-        [Fact]
+        [Test]
         public async Task SendAsync_DoesNotSendAdminTelegramMessage_OnSuccessfulResponse()
         {
             using CurrentDirectoryScope _ = CurrentDirectoryScope.CreateWithSettingsFile(adminChat: "123456");
@@ -45,11 +45,11 @@ namespace AniWorldReminder_API.Tests.Services
                 new HttpRequestMessage(HttpMethod.Get, "https://example.com/episodes"),
                 CancellationToken.None);
 
-            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.Empty(telegramBotService.Messages);
+            Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+            Assert.That(telegramBotService.Messages, Is.Empty);
         }
 
-        [Fact]
+        [Test]
         public async Task SendAsync_SendsAdminTelegramMessage_OnTransientHttpException()
         {
             using CurrentDirectoryScope _ = CurrentDirectoryScope.CreateWithSettingsFile(adminChat: "123456");
@@ -58,13 +58,13 @@ namespace AniWorldReminder_API.Tests.Services
                 telegramBotService,
                 new StubHttpMessageHandler(_ => throw new HttpRequestException("network down")));
 
-            HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() => invoker.SendAsync(
+            HttpRequestException exception = Assert.ThrowsAsync<HttpRequestException>(() => invoker.SendAsync(
                 new HttpRequestMessage(HttpMethod.Get, "https://example.com/episodes"),
-                CancellationToken.None));
+                CancellationToken.None))!;
 
-            Assert.Equal("network down", exception.Message);
-            Assert.Single(telegramBotService.Messages);
-            Assert.Contains("network down", telegramBotService.Messages[0].Text);
+            Assert.That(exception.Message, Is.EqualTo("network down"));
+            Assert.That(telegramBotService.Messages, Has.Count.EqualTo(1));
+            Assert.That(telegramBotService.Messages[0].Text, Does.Contain("network down"));
         }
 
         private static HttpMessageInvoker CreateInvoker(ITelegramBotService telegramBotService, HttpMessageHandler innerHandler)

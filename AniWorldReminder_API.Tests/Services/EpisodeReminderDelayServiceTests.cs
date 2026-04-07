@@ -2,13 +2,13 @@ using AniWorldReminder_API.Interfaces;
 using AniWorldReminder_API.Models;
 using AniWorldReminder_API.Services;
 using Microsoft.Extensions.Logging.Abstractions;
-using Xunit;
+using NUnit.Framework;
 
 namespace AniWorldReminder_API.Tests.Services
 {
     public class EpisodeReminderDelayServiceTests
     {
-        [Fact]
+        [Test]
         public async Task DelayAfterSeriesScanAsync_UsesDefaultDelay_WhenSettingsAreMissing()
         {
             FakeDelayExecutor delayExecutor = new();
@@ -16,11 +16,11 @@ namespace AniWorldReminder_API.Tests.Services
 
             await service.DelayAfterSeriesScanAsync(null);
 
-            Assert.Single(delayExecutor.Delays);
-            Assert.InRange(delayExecutor.Delays[0], TimeSpan.FromMilliseconds(1000), TimeSpan.FromMilliseconds(1500));
+            Assert.That(delayExecutor.Delays, Has.Count.EqualTo(1));
+            Assert.That(delayExecutor.Delays[0], Is.InRange(TimeSpan.FromMilliseconds(1000), TimeSpan.FromMilliseconds(1500)));
         }
 
-        [Fact]
+        [Test]
         public async Task DelayAfterSeriesScanAsync_UsesDefaultDelay_WhenConfiguredDelayIsInvalid()
         {
             FakeDelayExecutor delayExecutor = new();
@@ -32,11 +32,11 @@ namespace AniWorldReminder_API.Tests.Services
 
             await service.DelayAfterSeriesScanAsync(appSettings);
 
-            Assert.Single(delayExecutor.Delays);
-            Assert.InRange(delayExecutor.Delays[0], TimeSpan.FromMilliseconds(1000), TimeSpan.FromMilliseconds(1500));
+            Assert.That(delayExecutor.Delays, Has.Count.EqualTo(1));
+            Assert.That(delayExecutor.Delays[0], Is.InRange(TimeSpan.FromMilliseconds(1000), TimeSpan.FromMilliseconds(1500)));
         }
 
-        [Fact]
+        [Test]
         public async Task DelayAfterNotificationAsync_UsesConfiguredDelay()
         {
             FakeDelayExecutor delayExecutor = new();
@@ -48,11 +48,11 @@ namespace AniWorldReminder_API.Tests.Services
 
             await service.DelayAfterNotificationAsync(appSettings);
 
-            Assert.Single(delayExecutor.Delays);
-            Assert.Equal(TimeSpan.FromMilliseconds(750), delayExecutor.Delays[0]);
+            Assert.That(delayExecutor.Delays, Has.Count.EqualTo(1));
+            Assert.That(delayExecutor.Delays[0], Is.EqualTo(TimeSpan.FromMilliseconds(750)));
         }
 
-        [Fact]
+        [Test]
         public async Task DelayAfterNotificationAsync_UsesConfiguredRange_WhenDelayExceedsMinimum()
         {
             FakeDelayExecutor delayExecutor = new();
@@ -64,8 +64,8 @@ namespace AniWorldReminder_API.Tests.Services
 
             await service.DelayAfterNotificationAsync(appSettings);
 
-            Assert.Single(delayExecutor.Delays);
-            Assert.InRange(delayExecutor.Delays[0], TimeSpan.FromMilliseconds(1000), TimeSpan.FromMilliseconds(2000));
+            Assert.That(delayExecutor.Delays, Has.Count.EqualTo(1));
+            Assert.That(delayExecutor.Delays[0], Is.InRange(TimeSpan.FromMilliseconds(1000), TimeSpan.FromMilliseconds(2000)));
         }
 
         private sealed class FakeDelayExecutor : IDelayExecutor

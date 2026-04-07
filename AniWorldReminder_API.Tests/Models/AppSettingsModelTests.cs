@@ -1,17 +1,17 @@
 using AniWorldReminder_API.Models;
-using Xunit;
+using NUnit.Framework;
 
 namespace AniWorldReminder_API.Tests.Models
 {
     public class AppSettingsModelTests
     {
-        [Fact]
+        [Test]
         public void AppSettingsModel_HasConservativeEpisodeReminderDelayDefaults()
         {
             AppSettingsModel settings = new();
 
-            Assert.Equal(1500, settings.EpisodeReminderSeriesDelayMs);
-            Assert.Equal(500, settings.EpisodeReminderNotificationDelayMs);
+            Assert.AreEqual(1500, settings.EpisodeReminderSeriesDelayMs);
+            Assert.AreEqual(500, settings.EpisodeReminderNotificationDelayMs);
         }
     }
 }
