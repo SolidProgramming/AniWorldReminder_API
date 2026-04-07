@@ -6,7 +6,7 @@ using System.Text;
 
 namespace AniWorldReminder_API.Classes
 {
-    [DisableConcurrentExecution(timeoutInSeconds: 15)]
+    [DisableConcurrentExecution(timeoutInSeconds: 120)]
     [AutomaticRetry(Attempts = 3)]
     public class UpsertEpisodeInfoJob(ILogger<UpsertEpisodeInfoJob> logger, IStreamingPortalServiceFactory streamingPortalServiceFactory, IDBService dbService, ITelegramBotService telegramBotService, IEpisodeReminderDelayService episodeReminderDelayService)
     {
