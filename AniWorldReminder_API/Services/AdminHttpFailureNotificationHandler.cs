@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Http.Resilience;
 using Polly.Timeout;
 
 namespace AniWorldReminder_API.Services

@@ -1,7 +1,5 @@
 using Microsoft.Extensions.Http.Resilience;
 using Polly;
-using Polly.CircuitBreaker;
-using Polly.RateLimiting;
 using Polly.Timeout;
 using System.Threading.RateLimiting;
 

@@ -1,6 +1,5 @@
 using Hangfire;
 using MethodTimer;
-using Mysqlx.Prepare;
 using System.Reflection;
 using System.Text;
 
