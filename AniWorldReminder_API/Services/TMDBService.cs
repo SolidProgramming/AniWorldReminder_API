@@ -50,6 +50,23 @@ namespace AniWorldReminder_API.Services
 
             return await GetAsync<TMDBSearchTVByIdModel>(tvEndpoint, queryData);
         }
+        public async Task<TMDBSearchTVByIdModel?> SearchTVShowByTvdbId(int tvdbId)
+        {
+            string findEndpoint = $"find/{tvdbId}";
+
+            Dictionary<string, string> queryData = new()
+            {
+                { "external_source", "tvdb_id" },
+                { "language", "de-DE" },
+            };
+
+            TMDBFindByExternalIdResponseModel? searchResult = await GetAsync<TMDBFindByExternalIdResponseModel>(findEndpoint, queryData);
+            int? tmdbId = searchResult?.TvResults?.FirstOrDefault()?.Id;
+
+            return tmdbId is > 0
+                ? await SearchTVShowById(tmdbId)
+                : null;
+        }
         private async Task<T?> GetAsync<T>(string uri)
         {
             HttpRequestMessage request = new(HttpMethod.Get, uri);

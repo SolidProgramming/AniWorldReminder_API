@@ -11,8 +11,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Http.Resilience;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -76,6 +76,35 @@ namespace AniWorldReminder_API
             if (appSettings is not null && appSettings.AddSwagger)
             {
                 builder.Services.AddOpenApi();
+                builder.Services.AddEndpointsApiExplorer();
+                builder.Services.AddSwaggerGen(options =>
+                {
+                    options.SwaggerDoc("v1", new OpenApiInfo
+                    {
+                        Title = "AniWorldReminder API",
+                        Version = "v1"
+                    });
+
+                    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                    {
+                        Name = "Authorization",
+                        Type = SecuritySchemeType.Http,
+                        Scheme = "bearer",
+                        BearerFormat = "JWT",
+                        In = ParameterLocation.Header,
+                        Description = "JWT als 'Bearer {token}' eintragen."
+                    });
+
+                    options.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
+                    {
+                        Name = "X-API-KEY",
+                        Type = SecuritySchemeType.ApiKey,
+                        In = ParameterLocation.Header,
+                        Description = "API-Key fuer Downloader- und Bridge-Endpunkte."
+                    });
+
+                    options.OperationFilter<SwaggerAuthOperationFilter>();
+                });
             }
             builder.Services.AddSingleton<IAuthService, AuthService>();
             builder.Services.AddSingleton<IDBService, DBService>();
@@ -102,6 +131,7 @@ namespace AniWorldReminder_API
             IAuthService authService = app.Services.GetRequiredService<IAuthService>();
 
             IDBService dbService = app.Services.GetRequiredService<IDBService>();
+            ITMDBService tmdbService = app.Services.GetRequiredService<ITMDBService>();
             if (!await dbService.InitAsync())
                 return;
 
@@ -154,9 +184,10 @@ namespace AniWorldReminder_API
             if (appSettings is not null && appSettings.AddSwagger)
             {
                 app.MapOpenApi();
+                app.UseSwagger();
                 app.UseSwaggerUI(options =>
                 {
-                    options.SwaggerEndpoint("/openapi/v1.json", "AniWorldReminder API v1");
+                    options.SwaggerEndpoint("/swagger/v1/swagger.json", "AniWorldReminder API v1");
                     options.EnableTryItOutByDefault();
                 });
             }
@@ -384,6 +415,461 @@ namespace AniWorldReminder_API
                         target.AddRange(result!);
                 }
             }
+
+            async Task<UserModel?> GetApiUserAsync(HttpContext httpContext)
+            {
+                string? apiKey = httpContext.Request.Query["apikey"].FirstOrDefault();
+
+                if (string.IsNullOrWhiteSpace(apiKey))
+                    apiKey = httpContext.Request.Headers["X-API-KEY"].FirstOrDefault();
+
+                return string.IsNullOrWhiteSpace(apiKey)
+                    ? null
+                    : await dbService.GetUserByAPIKey(apiKey);
+            }
+
+            string NormalizeSeriesPath(string? path)
+            {
+                string normalizedPath = path?.Trim() ?? string.Empty;
+
+                if (string.IsNullOrEmpty(normalizedPath))
+                    return string.Empty;
+
+                return $"/{normalizedPath.TrimStart('/')}";
+            }
+
+            string NormalizeTitle(string? title)
+            {
+                if (string.IsNullOrWhiteSpace(title))
+                    return string.Empty;
+
+                return new string(title
+                    .Trim()
+                    .ToLowerInvariant()
+                    .Where(char.IsLetterOrDigit)
+                    .ToArray());
+            }
+
+            IStreamingPortalService? GetStreamingPortalService(StreamingPortal streamingPortal) => streamingPortal switch
+            {
+                StreamingPortal.AniWorld => aniWorldService,
+                StreamingPortal.STO => sTOService,
+                _ => null
+            };
+
+            async Task<List<SearchResultModel>> SearchSeriesAcrossPortalsAsync(string title, bool strictSearch)
+            {
+                List<SearchResultModel> allSearchResults = [];
+
+                await AddPortalResultsAsync(
+                    allSearchResults,
+                    TryExecutePortalRequestIfAvailableAsync(aniWorldAvailable, aniWorldService, $"bridge search '{title}'", () => aniWorldService.GetMediaAsync(title, strictSearch)),
+                    TryExecutePortalRequestIfAvailableAsync(stoAvailable, sTOService, $"bridge search '{title}'", () => sTOService.GetMediaAsync(title, strictSearch)));
+
+                return allSearchResults;
+            }
+
+            SearchResultModel? PickBestSeriesMatch(IEnumerable<SearchResultModel> results, string title)
+            {
+                string normalizedTitle = NormalizeTitle(title);
+
+                SearchResultModel? exactMatch = results.FirstOrDefault(_ => NormalizeTitle(_.Name) == normalizedTitle);
+                return exactMatch ?? results.FirstOrDefault();
+            }
+
+            async Task<SearchResultModel?> FindBestSeriesMatchAsync(string title)
+            {
+                List<SearchResultModel> strictResults = await SearchSeriesAcrossPortalsAsync(title, strictSearch: true);
+                SearchResultModel? exactStrictMatch = PickBestSeriesMatch(strictResults, title);
+
+                if (exactStrictMatch is not null)
+                    return exactStrictMatch;
+
+                List<SearchResultModel> relaxedResults = await SearchSeriesAcrossPortalsAsync(title, strictSearch: false);
+                return PickBestSeriesMatch(relaxedResults, title);
+            }
+
+            async Task<SeriesModel?> EnsureSeriesAsync(SearchResultModel searchResult)
+            {
+                string normalizedSeriesPath = NormalizeSeriesPath(searchResult.Path);
+
+                if (string.IsNullOrEmpty(normalizedSeriesPath))
+                    return null;
+
+                SeriesModel? existingSeries = await dbService.GetSeriesAsync(normalizedSeriesPath);
+
+                if (existingSeries is not null)
+                    return existingSeries;
+
+                IStreamingPortalService? portalService = GetStreamingPortalService(searchResult.StreamingPortal);
+
+                if (portalService is null)
+                    return null;
+
+                await dbService.InsertSeries(normalizedSeriesPath, portalService);
+
+                return await dbService.GetSeriesAsync(normalizedSeriesPath);
+            }
+
+            Language SelectPreferredLanguage(Language availableLanguages)
+            {
+                if (availableLanguages == Language.EngDubGerSub)
+                    return Language.GerSub;
+
+                if (availableLanguages.HasFlag(Language.GerDub))
+                    return Language.GerDub;
+
+                if (availableLanguages.HasFlag(Language.GerSub))
+                    return Language.GerSub;
+
+                if (availableLanguages.HasFlag(Language.EngDub))
+                    return Language.EngDub;
+
+                if (availableLanguages.HasFlag(Language.EngSub))
+                    return Language.EngSub;
+
+                return availableLanguages == Language.None
+                    ? Language.None
+                    : availableLanguages.GetFlags(Language.None).FirstOrDefault();
+            }
+
+            SonarrSeriesLookupModel BuildSonarrSeriesResponse(
+                string title,
+                int tvdbId,
+                IEnumerable<int> seasonNumbers,
+                string overview = "",
+                string seriesType = "standard",
+                string? path = null,
+                int? id = null,
+                int? year = null)
+            {
+                List<int> distinctSeasonNumbers = seasonNumbers
+                    .Where(_ => _ > 0)
+                    .Distinct()
+                    .OrderBy(_ => _)
+                    .ToList();
+
+                return new SonarrSeriesLookupModel
+                {
+                    Id = id,
+                    Title = title,
+                    SortTitle = title,
+                    SeasonCount = distinctSeasonNumbers.Count,
+                    Overview = overview,
+                    Seasons = distinctSeasonNumbers
+                        .Select(_ => new SonarrSeasonLookupModel
+                        {
+                            SeasonNumber = _,
+                            Monitored = false,
+                            Statistics = new SonarrSeasonStatisticsModel()
+                        })
+                        .ToList(),
+                    Year = year ?? DateTime.UtcNow.Year,
+                    Path = NormalizeSeriesPath(path),
+                    ProfileId = 1,
+                    LanguageProfileId = 1,
+                    TvdbId = tvdbId,
+                    SeriesType = seriesType,
+                    CleanTitle = title.UrlSanitize().ToLowerInvariant(),
+                    TitleSlug = title.UrlSanitize().ToLowerInvariant()
+                };
+            }
+
+            async Task<SonarrSeriesLookupModel?> BuildLookupFromTvdbIdAsync(int tvdbId, string? fallbackTitle = null)
+            {
+                TMDBSearchTVByIdModel? tmdbSeries = await tmdbService.SearchTVShowByTvdbId(tvdbId);
+
+                if (tmdbSeries is null)
+                {
+                    return string.IsNullOrWhiteSpace(fallbackTitle)
+                        ? null
+                        : BuildSonarrSeriesResponse(fallbackTitle, tvdbId, Enumerable.Range(1, 1));
+                }
+
+                IEnumerable<int> seasonNumbers = tmdbSeries.Seasons
+                    .Where(_ => (_.SeasonNumber ?? 0) > 0)
+                    .Select(_ => _.SeasonNumber ?? 0);
+
+                int? year = null;
+
+                if (DateTime.TryParse(tmdbSeries.FirstAirDate, out DateTime firstAirDate))
+                    year = firstAirDate.Year;
+
+                return BuildSonarrSeriesResponse(
+                    tmdbSeries.Name ?? fallbackTitle ?? $"TVDB {tvdbId}",
+                    tvdbId,
+                    seasonNumbers,
+                    tmdbSeries.Overview ?? string.Empty,
+                    path: fallbackTitle,
+                    year: year);
+            }
+
+            async Task<SonarrSeriesLookupModel?> BuildLookupFromSearchResultAsync(SearchResultModel searchResult)
+            {
+                IStreamingPortalService? portalService = GetStreamingPortalService(searchResult.StreamingPortal);
+
+                if (portalService is null || string.IsNullOrWhiteSpace(searchResult.Path))
+                    return null;
+
+                SeriesInfoModel? seriesInfo = await portalService.GetMediaInfoAsync(searchResult.Path);
+
+                if (seriesInfo is null || string.IsNullOrWhiteSpace(seriesInfo.Name))
+                    return null;
+
+                int tvdbId = seriesInfo.TMDBSearchTVById?.Id ?? 0;
+                IEnumerable<int> seasonNumbers = seriesInfo.Seasons
+                    .Select(_ => _.Id)
+                    .Where(_ => _ > 0);
+
+                int? year = null;
+
+                if (DateTime.TryParse(seriesInfo.TMDBSearchTVById?.FirstAirDate, out DateTime firstAirDate))
+                    year = firstAirDate.Year;
+
+                return BuildSonarrSeriesResponse(
+                    seriesInfo.Name,
+                    tvdbId,
+                    seasonNumbers,
+                    seriesInfo.Description ?? string.Empty,
+                    path: searchResult.Path,
+                    year: year);
+            }
+
+            async Task<IResult> QueueSeriesRequestAsync(UserModel apiUser, SonarrAddSeriesRequestModel request)
+            {
+                string seriesTitle = request.Title?.Trim() ?? string.Empty;
+
+                if (string.IsNullOrWhiteSpace(seriesTitle) && request.TvdbId > 0)
+                {
+                    TMDBSearchTVByIdModel? tmdbSeries = await tmdbService.SearchTVShowByTvdbId(request.TvdbId);
+                    seriesTitle = tmdbSeries?.Name?.Trim() ?? string.Empty;
+                }
+
+                if (string.IsNullOrWhiteSpace(seriesTitle))
+                    return Results.BadRequest("Series title could not be resolved.");
+
+                SearchResultModel? searchResult = await FindBestSeriesMatchAsync(seriesTitle);
+
+                if (searchResult is null)
+                    return Results.NotFound($"No portal match found for '{seriesTitle}'.");
+
+                SeriesModel? series = await EnsureSeriesAsync(searchResult);
+
+                if (series is null || string.IsNullOrWhiteSpace(series.Path))
+                    return Results.NotFound("Series could not be initialized in the local catalog.");
+
+                UsersSeriesModel? existingUserSeries = await dbService.GetUsersSeriesAsync(apiUser.Id.ToString(), series.Path);
+
+                if (existingUserSeries is null)
+                {
+                    await dbService.InsertUsersSeriesAsync(new UsersSeriesModel
+                    {
+                        Users = apiUser,
+                        Series = series,
+                        LanguageFlag = Language.GerDub
+                    });
+                }
+
+                List<EpisodeModel> allEpisodes = await dbService.GetSeriesEpisodesAsync(series.Id) ?? [];
+                HashSet<int> requestedSeasons = request.Seasons
+                    .Where(_ => _.Monitored)
+                    .Select(_ => _.SeasonNumber)
+                    .ToHashSet();
+
+                if (requestedSeasons.Count == 0)
+                {
+                    requestedSeasons = allEpisodes
+                        .Select(_ => _.Season)
+                        .Where(_ => _ > 0)
+                        .ToHashSet();
+                }
+
+                List<EpisodeModel> episodesToQueue = allEpisodes
+                    .Where(_ => requestedSeasons.Contains(_.Season))
+                    .Select(_ => new EpisodeModel
+                    {
+                        Id = _.Id,
+                        SeriesId = _.SeriesId,
+                        Season = _.Season,
+                        Episode = _.Episode,
+                        Name = _.Name,
+                        Languages = SelectPreferredLanguage(_.Languages)
+                    })
+                    .ToList();
+
+                if (!episodesToQueue.HasItems())
+                    return Results.NotFound("No episodes found for the requested seasons.");
+
+                int queuedEpisodes = await dbService.InsertDownloadAsync(apiUser.Id.ToString(), series.Id.ToString(), episodesToQueue);
+
+                SonarrSeriesLookupModel response = BuildSonarrSeriesResponse(
+                    series.Name ?? seriesTitle,
+                    request.TvdbId,
+                    requestedSeasons,
+                    path: series.Path,
+                    id: series.Id,
+                    seriesType: request.SeriesType);
+
+                response.Monitored = queuedEpisodes > 0;
+
+                return Results.Ok(response);
+            }
+
+            app.MapGet("/api/v3/system/status", [AllowAnonymous] async (HttpContext httpContext) =>
+            {
+                UserModel? apiUser = await GetApiUserAsync(httpContext);
+                return apiUser is null
+                    ? Results.Unauthorized()
+                    : Results.Ok(new SonarrSystemStatusModel());
+            });
+
+            app.MapGet("/api/v3/qualityProfile", [AllowAnonymous] async (HttpContext httpContext) =>
+            {
+                UserModel? apiUser = await GetApiUserAsync(httpContext);
+                return apiUser is null
+                    ? Results.Unauthorized()
+                    : Results.Ok(new List<SonarrQualityProfileModel>
+                    {
+                        new()
+                        {
+                            Id = 1,
+                            Name = "AniWorld / STO"
+                        }
+                    });
+            });
+
+            app.MapGet("/api/v3/rootfolder", [AllowAnonymous] async (HttpContext httpContext) =>
+            {
+                UserModel? apiUser = await GetApiUserAsync(httpContext);
+                return apiUser is null
+                    ? Results.Unauthorized()
+                    : Results.Ok(new List<SonarrRootFolderModel>
+                    {
+                        new()
+                        {
+                            Id = 1,
+                            Path = "/aniworld-bridge",
+                            FreeSpace = 0,
+                            TotalSpace = 0
+                        }
+                    });
+            });
+
+            app.MapGet("/api/v3/languageprofile", [AllowAnonymous] async (HttpContext httpContext) =>
+            {
+                UserModel? apiUser = await GetApiUserAsync(httpContext);
+                return apiUser is null
+                    ? Results.Unauthorized()
+                    : Results.Ok(new List<SonarrLanguageProfileModel>
+                    {
+                        new()
+                        {
+                            Id = 1,
+                            Name = "Default"
+                        }
+                    });
+            });
+
+            app.MapGet("/api/v3/tag", [AllowAnonymous] async (HttpContext httpContext) =>
+            {
+                UserModel? apiUser = await GetApiUserAsync(httpContext);
+                return apiUser is null
+                    ? Results.Unauthorized()
+                    : Results.Ok(new List<SonarrTagModel>());
+            });
+
+            app.MapGet("/api/v3/series", [AllowAnonymous] async (HttpContext httpContext) =>
+            {
+                UserModel? apiUser = await GetApiUserAsync(httpContext);
+                return apiUser is null
+                    ? Results.Unauthorized()
+                    : Results.Ok(new List<SonarrSeriesLookupModel>());
+            });
+
+            app.MapGet("/api/v3/series/lookup", [AllowAnonymous] async (HttpContext httpContext, string term) =>
+            {
+                UserModel? apiUser = await GetApiUserAsync(httpContext);
+
+                if (apiUser is null)
+                    return Results.Unauthorized();
+
+                if (string.IsNullOrWhiteSpace(term))
+                    return Results.Ok(new List<SonarrSeriesLookupModel>());
+
+                if (term.StartsWith("tvdb:", StringComparison.OrdinalIgnoreCase) &&
+                    int.TryParse(term["tvdb:".Length..], out int tvdbId))
+                {
+                    SonarrSeriesLookupModel? lookupByTvdb = await BuildLookupFromTvdbIdAsync(tvdbId);
+
+                    return lookupByTvdb is null
+                        ? Results.Ok(new List<SonarrSeriesLookupModel>())
+                        : Results.Ok(new List<SonarrSeriesLookupModel> { lookupByTvdb });
+                }
+
+                List<SearchResultModel> searchResults = await SearchSeriesAcrossPortalsAsync(term, strictSearch: false);
+                List<SonarrSeriesLookupModel> lookupResults = [];
+
+                foreach (SearchResultModel searchResult in searchResults.Take(5))
+                {
+                    SonarrSeriesLookupModel? lookupResult = await BuildLookupFromSearchResultAsync(searchResult);
+
+                    if (lookupResult is not null)
+                        lookupResults.Add(lookupResult);
+                }
+
+                return Results.Ok(lookupResults);
+            });
+
+            app.MapPost("/api/v3/series", [AllowAnonymous] async (HttpContext httpContext, [FromBody] SonarrAddSeriesRequestModel request) =>
+            {
+                UserModel? apiUser = await GetApiUserAsync(httpContext);
+
+                if (apiUser is null)
+                    return Results.Unauthorized();
+
+                return await QueueSeriesRequestAsync(apiUser, request);
+            });
+
+            app.MapPut("/api/v3/series", [AllowAnonymous] async (HttpContext httpContext, [FromBody] SonarrAddSeriesRequestModel request) =>
+            {
+                UserModel? apiUser = await GetApiUserAsync(httpContext);
+
+                if (apiUser is null)
+                    return Results.Unauthorized();
+
+                return await QueueSeriesRequestAsync(apiUser, request);
+            });
+
+            app.MapGet("/api/v3/episode", [AllowAnonymous] async (HttpContext httpContext, int seriesId) =>
+            {
+                UserModel? apiUser = await GetApiUserAsync(httpContext);
+
+                if (apiUser is null)
+                    return Results.Unauthorized();
+
+                List<EpisodeModel> episodes = await dbService.GetSeriesEpisodesAsync(seriesId) ?? [];
+
+                return Results.Ok(episodes.Select((episode, index) => new SonarrEpisodeModel
+                {
+                    Id = index + 1,
+                    SeriesId = seriesId,
+                    SeasonNumber = episode.Season,
+                    EpisodeNumber = episode.Episode,
+                    Title = episode.Name ?? string.Empty
+                }));
+            });
+
+            app.MapPut("/api/v3/episode/monitor", [AllowAnonymous] async (HttpContext httpContext, [FromBody] SonarrEpisodeMonitorRequestModel request) =>
+            {
+                UserModel? apiUser = await GetApiUserAsync(httpContext);
+                return apiUser is null ? Results.Unauthorized() : Results.Ok(request);
+            });
+
+            app.MapPost("/api/v3/command", [AllowAnonymous] async (HttpContext httpContext, [FromBody] SonarrCommandRequestModel request) =>
+            {
+                UserModel? apiUser = await GetApiUserAsync(httpContext);
+                return apiUser is null ? Results.Unauthorized() : Results.Ok(request);
+            });
 
             app.MapPost("/verify", async ([FromBody] VerifyRequestModel verifyRequest) =>
             {
