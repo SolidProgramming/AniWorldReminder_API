@@ -19,8 +19,33 @@ namespace AniWorldReminder_API.Factories
 
         public HttpClient CreateHttpClient<T>(bool defaultRequestHeaders = true)
         {
-            HttpClient httpClient = httpClientFactory.CreateClient(typeof(T).FullName ?? typeof(T).Name);
+            string clientName = typeof(T).FullName ?? typeof(T).Name;
+
+            HttpClientHandler clientHandler = new()
+            {
+                UseProxy = false,
+                Proxy = null,
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli
+            };
+
+            ResiliencePipelineBuilder<HttpResponseMessage> pipelineBuilder = new();
+            HttpResiliencePipelineConfigurator.Configure(pipelineBuilder, loggerFactory, clientName);
+
+            ResilienceHandler resilienceHandler = new(pipelineBuilder.Build())
+            {
+                InnerHandler = clientHandler
+            };
+
+            AdminHttpFailureNotificationHandler adminNotificationHandler = ActivatorUtilities.CreateInstance<AdminHttpFailureNotificationHandler>(serviceProvider);
+            adminNotificationHandler.InnerHandler = resilienceHandler;
+
+            HttpClient httpClient = new(adminNotificationHandler)
+            {
+                Timeout = TimeSpan.FromMilliseconds(Timeout.Infinite)
+            };
+
             ApplyDefaultConfiguration(httpClient, defaultRequestHeaders);
+
             return httpClient;
         }
 
@@ -35,7 +60,8 @@ namespace AniWorldReminder_API.Factories
                 Proxy = proxy,
                 MaxConnectionsPerServer = 1,
                 UseCookies = true,
-                CookieContainer = cookieContainer
+                CookieContainer = cookieContainer,
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate | DecompressionMethods.Brotli
             };
 
             ResiliencePipelineBuilder<HttpResponseMessage> pipelineBuilder = new();
