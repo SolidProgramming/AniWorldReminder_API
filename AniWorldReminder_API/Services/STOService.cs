@@ -15,7 +15,7 @@ namespace AniWorldReminder_API.Services
             ILogger<STOService> logger,
             Interfaces.IHttpClientFactory httpClientFactory,
             ITMDBService tmdbService)
-            : base(logger, httpClientFactory, "https://serienstream.cx", "S.TO", StreamingPortal.STO, tmdbService)
+            : base(logger, httpClientFactory, "https://serienstream.to", "S.TO", StreamingPortal.STO, tmdbService)
         {
         }
 
