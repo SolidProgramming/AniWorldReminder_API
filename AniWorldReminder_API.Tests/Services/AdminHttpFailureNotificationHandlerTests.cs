@@ -58,9 +58,9 @@ namespace AniWorldReminder_API.Tests.Services
                 telegramBotService,
                 new StubHttpMessageHandler(_ => throw new HttpRequestException("network down")));
 
-            HttpRequestException exception = Assert.ThrowsAsync<HttpRequestException>(() => invoker.SendAsync(
+            HttpRequestException exception = (await Assert.ThrowsAsync<HttpRequestException>(() => invoker.SendAsync(
                 new HttpRequestMessage(HttpMethod.Get, "https://example.com/episodes"),
-                CancellationToken.None))!;
+                CancellationToken.None)))!;
 
             Assert.That(exception.Message, Is.EqualTo("network down"));
             Assert.That(telegramBotService.Messages, Has.Count.EqualTo(1));
